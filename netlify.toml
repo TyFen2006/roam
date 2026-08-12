@@ -1,0 +1,13 @@
+# Netlify build + deploy config for Roam
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Single-page app fallback (harmless for Roam's one-page shell)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
