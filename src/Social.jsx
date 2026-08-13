@@ -1,187 +1,201 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { supabase } from './lib/supabase.js';
+import { initials } from './lib/util.js';
 import './Social.css';
 
-const MOOD_COL = { Together: '#e8a33d', Explore: '#7fb0b6', Scenic: '#3f8f6d', Chill: '#33a08f' };
-
-const BADGES = {
-  sunrise:  { label: 'Sunrise Club', col: '#f0a63c' },
-  newfaces: { label: '10 New Faces', col: '#3f8f6d' },
-  hood:     { label: 'Neighborhood', col: '#7fb0b6' },
-  rain:     { label: 'Rain Run',     col: '#33a08f' },
-  night:    { label: 'Night Owl',    col: '#8a7bd8' },
-  trail:    { label: 'Trailblazer',  col: '#e8654f' },
-};
-
-const FRIENDS = [
-  { id: 'maya', name: 'Maya Chen', ini: 'MC', col: '#e8a33d', rank: 'Cartographer', streak: 12, week: 640, terr: 41, streets: 210, faces: 22,
-    runs: [
-      { mood: 'Together', pts: 180, when: 'Today', note: 'Sunset loop with the crew 🌇' },
-      { mood: 'Explore',  pts: 120, when: 'Tue',   note: 'New trail behind the mill' },
-      { mood: 'Chill',    pts: 60,  when: 'Sun',   note: 'Easy recovery jog' },
-    ], badges: ['sunrise', 'newfaces', 'hood', 'trail'] },
-  { id: 'devin', name: 'Devin Ross', ini: 'DR', col: '#33a08f', rank: 'Trailblazer', streak: 5, week: 498, terr: 33, streets: 168, faces: 14,
-    runs: [
-      { mood: 'Explore', pts: 140, when: 'Today', note: 'Colored in 4 new streets' },
-      { mood: 'Scenic',  pts: 90,  when: 'Mon',   note: 'Coastal route, unreal views' },
-    ], badges: ['hood', 'rain', 'trail'] },
-  { id: 'priya', name: 'Priya Shah', ini: 'PS', col: '#8a7bd8', rank: 'Ringleader', streak: 20, week: 410, terr: 28, streets: 140, faces: 31,
-    runs: [
-      { mood: 'Together', pts: 200, when: 'Today', note: 'Brought two first-timers! 🎉' },
-      { mood: 'Together', pts: 110, when: 'Wed',   note: 'Group run downtown' },
-    ], badges: ['newfaces', 'night', 'sunrise'] },
-  { id: 'jake', name: 'Jake Miller', ini: 'JM', col: '#7fb0b6', rank: 'Pathfinder', streak: 3, week: 360, terr: 22, streets: 96, faces: 9,
-    runs: [
-      { mood: 'Chill',  pts: 70, when: 'Today', note: 'Slow miles, big talks' },
-      { mood: 'Night',  pts: 80, when: 'Thu',   note: 'Late night neon run' },
-    ], badges: ['night', 'trail'] },
-];
-
-const GROUPS = [
-  { id: 'unh', name: 'UNH Running Club', emoji: '🐾', col: '#3d6fe0', members: 42, joined: true, blurb: 'Wildcats who run for fun',
-    board: [ ['Maya C.', 640], ['You', 520], ['Devin R.', 498], ['Priya S.', 410], ['Jake M.', 360] ] },
-  { id: 'sunday', name: 'Sunday Long Run Crew', emoji: '🌅', col: '#e0793a', members: 8, joined: true, blurb: 'Weekend warriors, coffee after',
-    board: [ ['You', 300], ['Priya S.', 280], ['Maya C.', 240], ['Sam T.', 180] ] },
-  { id: 'durham', name: 'Durham Community', emoji: '🏘️', col: '#33a08f', members: 211, joined: false, blurb: 'Everyone exploring Durham, NH',
-    board: [ ['Alex P.', 910], ['Maya C.', 640], ['Nora B.', 590], ['You', 520], ['Devin R.', 498] ] },
-];
-
-function badgeIcon(k) {
-  const c = BADGES[k].col;
-  switch (k) {
-    case 'sunrise':  return <><path d="M10 26a10 10 0 0 1 20 0" fill="none" stroke={c} strokeWidth="2.4" /><path d="M20 6v6M9 12l3 3M31 12l-3 3M4 26h32" stroke={c} strokeWidth="2.4" strokeLinecap="round" /></>;
-    case 'newfaces': return <><circle cx="15" cy="16" r="4" stroke={c} strokeWidth="2.4" fill="none" /><circle cx="25" cy="18" r="3.2" stroke={c} strokeWidth="2.4" fill="none" /><path d="M8 32c1-5 4-7 7-7s6 2 7 6M22 31c1-4 3-5 5-5s4 1 5 5" stroke={c} strokeWidth="2.2" fill="none" strokeLinecap="round" /></>;
-    case 'hood':     return <><path d="M9 18l11-6 11 6v13H9z" fill="none" stroke={c} strokeWidth="2.4" strokeLinejoin="round" /><path d="M20 12v19" stroke={c} strokeWidth="1.6" /><path d="M13 24c3 0 4-3 7-3s4 3 7 3" stroke={c} strokeWidth="2" fill="none" strokeLinecap="round" /></>;
-    case 'rain':     return <path d="M20 7c-6 9-9 13-9 18a9 9 0 0 0 18 0c0-5-3-9-9-18z" fill="none" stroke={c} strokeWidth="2.4" />;
-    case 'night':    return <path d="M26 20a8 8 0 1 1-8-8 6.5 6.5 0 0 0 8 8z" fill="none" stroke={c} strokeWidth="2.4" strokeLinejoin="round" />;
-    default:         return <path d="M20 6l4 8 9 1-6.5 6.3 1.5 9L20 26l-8 4.3 1.5-9L7 15l9-1z" fill="none" stroke={c} strokeWidth="2.4" strokeLinejoin="round" />;
-  }
-}
-
-function Badge({ k }) {
+function Avatar({ p, size = 46 }) {
+  const ini = initials(p?.display_name || p?.username);
   return (
-    <div className="badge" title={BADGES[k].label}>
-      <svg viewBox="0 0 40 40" style={{ '--bc': BADGES[k].col }}>
-        <circle cx="20" cy="20" r="18" fill="rgba(255,255,255,.02)" stroke="var(--bc)" strokeWidth="1.5" opacity=".5" />
-        {badgeIcon(k)}
-      </svg>
-      <span>{BADGES[k].label}</span>
+    <div className="s-avatar" style={{ width: size, height: size, fontSize: size * 0.36 }}>
+      {p?.avatar_url ? <img src={p.avatar_url} alt="" /> : ini}
     </div>
   );
 }
 
-function Avatar({ f, size = 46 }) {
-  return <div className="avatar" style={{ width: size, height: size, background: `linear-gradient(150deg, ${f.col}, ${f.col}22)`, borderColor: f.col }}>{f.ini}</div>;
-}
+export default function Social({ userId }) {
+  const [sel, setSel] = useState({ t: 'home' });   // home | { t:'friend', p }
+  const [friends, setFriends] = useState([]);
+  const [requests, setRequests] = useState([]);     // incoming pending: { fid, p }
+  const [outgoing, setOutgoing] = useState(new Set()); // ids I've requested
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState('');
+  const [err, setErr] = useState('');
 
-export default function Social() {
-  const [sel, setSel] = useState({ t: 'home' });
-  const [joined, setJoined] = useState(() => Object.fromEntries(GROUPS.map(g => [g.id, g.joined])));
+  const load = useCallback(async () => {
+    if (!userId || !supabase) return;
+    setLoading(true); setErr('');
+    try {
+      const { data: fr, error } = await supabase
+        .from('friendships').select('id,requester,addressee,status')
+        .or(`requester.eq.${userId},addressee.eq.${userId}`);
+      if (error) throw error;
 
+      const accepted = fr.filter(f => f.status === 'accepted');
+      const friendIds = accepted.map(f => (f.requester === userId ? f.addressee : f.requester));
+      const incoming = fr.filter(f => f.status === 'pending' && f.addressee === userId);
+      const outIds = new Set(fr.filter(f => f.status === 'pending' && f.requester === userId).map(f => f.addressee));
+
+      const ids = [...new Set([...friendIds, ...incoming.map(f => f.requester)])];
+      let byId = {};
+      if (ids.length) {
+        const { data: profs } = await supabase.from('profiles')
+          .select('id,display_name,username,avatar_url,points,rank,level').in('id', ids);
+        byId = Object.fromEntries((profs || []).map(p => [p.id, p]));
+      }
+      setFriends(friendIds.map(id => byId[id]).filter(Boolean).sort((a, b) => (b.points || 0) - (a.points || 0)));
+      setRequests(incoming.map(f => ({ fid: f.id, p: byId[f.requester] })).filter(r => r.p));
+      setOutgoing(outIds);
+    } catch (e) {
+      setErr(e.message || 'Could not load friends');
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function search(e) {
+    e?.preventDefault();
+    const term = q.trim().replace(/^@/, '');
+    if (!term) { setResults(null); return; }
+    setErr('');
+    const { data, error } = await supabase.from('profiles')
+      .select('id,display_name,username,avatar_url,points')
+      .ilike('username', `%${term}%`).neq('id', userId).limit(12);
+    if (error) { setErr(error.message); return; }
+    setResults(data || []);
+  }
+
+  async function sendRequest(id) {
+    setBusy(id); setErr('');
+    try {
+      const { error } = await supabase.from('friendships').insert({ requester: userId, addressee: id, status: 'pending' });
+      if (error) {
+        if (error.code === '23505') throw new Error('Already requested');
+        throw error;
+      }
+      setOutgoing(new Set([...outgoing, id]));
+    } catch (e) { setErr(e.message); } finally { setBusy(''); }
+  }
+
+  async function accept(fid) {
+    setBusy(fid);
+    await supabase.from('friendships').update({ status: 'accepted' }).eq('id', fid);
+    await load();
+    setBusy('');
+  }
+  async function decline(fid) {
+    setBusy(fid);
+    await supabase.from('friendships').delete().eq('id', fid);
+    await load();
+    setBusy('');
+  }
+
+  // ---- friend profile ----
   if (sel.t === 'friend') {
-    const f = FRIENDS.find(x => x.id === sel.id);
+    const p = sel.p;
     return (
       <div className="social">
         <button className="back" onClick={() => setSel({ t: 'home' })}>‹ Back</button>
         <div className="profile">
           <div className="phead">
-            <Avatar f={f} size={64} />
+            <Avatar p={p} size={64} />
             <div>
-              <h2>{f.name}</h2>
-              <div className="rankline"><span className="rank">{f.rank}</span> · 🔥 {f.streak}-day streak</div>
+              <h2>{p.display_name || 'Runner'}</h2>
+              <div className="rankline">@{p.username || '—'} · {p.rank || 'Wanderer'} · Lv {p.level ?? 1}</div>
             </div>
           </div>
           <div className="statrow">
-            <div className="st"><div className="n">{f.streets}</div><div className="l">streets</div></div>
-            <div className="st"><div className="n">{f.terr}%</div><div className="l">of Durham</div></div>
-            <div className="st"><div className="n">{f.faces}</div><div className="l">new faces</div></div>
-            <div className="st"><div className="n">{f.week}</div><div className="l">pts / wk</div></div>
+            <div className="st"><div className="n">{p.points ?? 0}</div><div className="l">points</div></div>
+            <div className="st"><div className="n">Lv {p.level ?? 1}</div><div className="l">{p.rank || 'Wanderer'}</div></div>
           </div>
-
-          <div className="sec-title">Recent runs</div>
-          <div className="runlist">
-            {f.runs.map((r, i) => (
-              <div className="runrow" key={i}>
-                <span className="dot" style={{ background: MOOD_COL[r.mood] || '#8a7bd8' }} />
-                <div className="rmid"><div className="rmood">{r.mood} run</div><div className="rnote">{r.note}</div></div>
-                <div className="rright"><div className="rpts">+{r.pts}</div><div className="rwhen">{r.when}</div></div>
-              </div>
-            ))}
-          </div>
-
-          <div className="sec-title">Patches · {f.badges.length}</div>
-          <div className="badges">{f.badges.map(b => <Badge k={b} key={b} />)}</div>
+          <p className="s-note">Their runs & badges will show here once we open run-sharing between friends.</p>
         </div>
       </div>
     );
   }
 
-  if (sel.t === 'group') {
-    const g = GROUPS.find(x => x.id === sel.id);
-    const isJoined = joined[g.id];
-    return (
-      <div className="social">
-        <button className="back" onClick={() => setSel({ t: 'home' })}>‹ Back</button>
-        <div className="gdetail">
-          <div className="ghead" style={{ '--gc': g.col }}>
-            <div className="gemoji">{g.emoji}</div>
-            <div>
-              <h2>{g.name}</h2>
-              <div className="gsub">{g.members} members · {g.blurb}</div>
-            </div>
-          </div>
-          <button className={`joinbtn ${isJoined ? 'in' : ''}`} onClick={() => setJoined({ ...joined, [g.id]: !isJoined })}>
-            {isJoined ? '✓ Joined' : '+ Join group'}
-          </button>
-
-          <div className="sec-title">This week · fun points</div>
-          <div className="board">
-            {g.board.map(([name, pts], i) => (
-              <div className={`brow ${name === 'You' ? 'me' : ''}`} key={i}>
-                <span className="brank">{i + 1}</span>
-                <span className="bname">{name}</span>
-                <span className="bbar"><span style={{ width: (pts / g.board[0][1] * 100) + '%', background: g.col }} /></span>
-                <span className="bpts">{pts}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // home
+  // ---- home ----
   return (
     <div className="social">
-      <div className="sec-title">Your groups <span className="hint">be in as many as you like</span></div>
-      <div className="groups">
-        {GROUPS.map(g => (
-          <button className="gcard" key={g.id} style={{ '--gc': g.col }} onClick={() => setSel({ t: 'group', id: g.id })}>
-            <div className="gcard-top"><span className="gemoji">{g.emoji}</span>{joined[g.id] && <span className="tag-in">Joined</span>}</div>
-            <div className="gcard-name">{g.name}</div>
-            <div className="gcard-meta">{g.members} members</div>
-          </button>
-        ))}
-        <button className="gcard join" onClick={() => setSel({ t: 'home' })}>
-          <div className="plus">+</div>
-          <div className="gcard-name">Join or create</div>
-          <div className="gcard-meta">community · crew · team</div>
-        </button>
-      </div>
+      {requests.length > 0 && (
+        <>
+          <div className="sec-title">Friend requests <span className="badge-count">{requests.length}</span></div>
+          <div className="friends">
+            {requests.map(r => (
+              <div className="friendrow" key={r.fid}>
+                <Avatar p={r.p} />
+                <div className="fmid">
+                  <div className="fname">{r.p.display_name || 'Runner'}</div>
+                  <div className="fsub">@{r.p.username || '—'}</div>
+                </div>
+                <div className="req-actions">
+                  <button className="btn-accept" disabled={busy === r.fid} onClick={() => accept(r.fid)}>Accept</button>
+                  <button className="btn-decline" disabled={busy === r.fid} onClick={() => decline(r.fid)}>✕</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
-      <div className="sec-title">Friends</div>
-      <div className="friends">
-        {FRIENDS.map(f => (
-          <button className="friendrow" key={f.id} onClick={() => setSel({ t: 'friend', id: f.id })}>
-            <Avatar f={f} />
-            <div className="fmid">
-              <div className="fname">{f.name}</div>
-              <div className="fsub"><span className="rank">{f.rank}</span> · 🔥 {f.streak}d</div>
-            </div>
-            <div className="fright"><div className="fpts">{f.week}</div><div className="fptl">pts / wk</div></div>
-            <span className="chev">›</span>
-          </button>
-        ))}
-      </div>
+      <div className="sec-title">Add friends</div>
+      <form className="s-search" onSubmit={search}>
+        <span className="at">@</span>
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="search by username" autoCapitalize="none" />
+        <button type="submit">Search</button>
+      </form>
+      {results && (
+        <div className="friends">
+          {results.length === 0 && <div className="s-empty">No one found. Ask them for their exact @username.</div>}
+          {results.map(p => {
+            const already = friends.some(f => f.id === p.id);
+            const sent = outgoing.has(p.id);
+            return (
+              <div className="friendrow" key={p.id}>
+                <Avatar p={p} />
+                <div className="fmid">
+                  <div className="fname">{p.display_name || 'Runner'}</div>
+                  <div className="fsub">@{p.username}</div>
+                </div>
+                {already
+                  ? <span className="tag-friend">Friends ✓</span>
+                  : sent
+                    ? <span className="tag-sent">Requested</span>
+                    : <button className="btn-add" disabled={busy === p.id} onClick={() => sendRequest(p.id)}>+ Add</button>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="sec-title">Friends {friends.length > 0 && <span className="hint">by points</span>}</div>
+      {loading ? (
+        <div className="s-empty">Loading…</div>
+      ) : friends.length === 0 ? (
+        <div className="s-empty">No friends yet — search a username above to send your first request. 🏃</div>
+      ) : (
+        <div className="friends">
+          {friends.map(p => (
+            <button className="friendrow" key={p.id} onClick={() => setSel({ t: 'friend', p })}>
+              <Avatar p={p} />
+              <div className="fmid">
+                <div className="fname">{p.display_name || 'Runner'}</div>
+                <div className="fsub">@{p.username || '—'} · {p.rank || 'Wanderer'}</div>
+              </div>
+              <div className="fright"><div className="fpts">{p.points ?? 0}</div><div className="fptl">points</div></div>
+              <span className="chev">›</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {err && <div className="s-err">{err}</div>}
+
+      <div className="sec-title">Groups</div>
+      <div className="s-empty">WHOOP-style groups & leaderboards are coming next (Phase 3b). 👥</div>
     </div>
   );
 }

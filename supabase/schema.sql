@@ -123,3 +123,57 @@ create policy "runs: insert own"
 drop policy if exists "runs: delete own" on public.runs;
 create policy "runs: delete own"
   on public.runs for delete using (auth.uid() = user_id);
+
+
+-- ────────────────────────────────────────────────────────────────────────────
+--  4 · FRIENDS  — real friendships + a points total for leaderboards (Phase 3a)
+-- ────────────────────────────────────────────────────────────────────────────
+-- running point total on each profile (kept in sync by the trigger below)
+alter table public.profiles add column if not exists points int default 0;
+
+create table if not exists public.friendships (
+  id         uuid primary key default gen_random_uuid(),
+  requester  uuid not null references public.profiles(id) on delete cascade,
+  addressee  uuid not null references public.profiles(id) on delete cascade,
+  status     text not null default 'pending',    -- 'pending' | 'accepted'
+  created_at timestamptz default now(),
+  unique (requester, addressee),
+  check (requester <> addressee)
+);
+create index if not exists friendships_addressee_idx on public.friendships (addressee);
+create index if not exists friendships_requester_idx on public.friendships (requester);
+
+alter table public.friendships enable row level security;
+
+drop policy if exists "friendships: read involved" on public.friendships;
+create policy "friendships: read involved" on public.friendships for select
+  using (auth.uid() = requester or auth.uid() = addressee);
+
+drop policy if exists "friendships: send own request" on public.friendships;
+create policy "friendships: send own request" on public.friendships for insert
+  with check (auth.uid() = requester);
+
+drop policy if exists "friendships: update involved" on public.friendships;
+create policy "friendships: update involved" on public.friendships for update
+  using (auth.uid() = requester or auth.uid() = addressee);
+
+drop policy if exists "friendships: delete involved" on public.friendships;
+create policy "friendships: delete involved" on public.friendships for delete
+  using (auth.uid() = requester or auth.uid() = addressee);
+
+-- keep profiles.points in sync as runs are added / removed
+create or replace function public.bump_profile_points()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if (tg_op = 'INSERT') then
+    update public.profiles set points = coalesce(points,0) + coalesce(new.points,0) where id = new.user_id;
+  elsif (tg_op = 'DELETE') then
+    update public.profiles set points = greatest(0, coalesce(points,0) - coalesce(old.points,0)) where id = old.user_id;
+  end if;
+  return null;
+end; $$;
+
+drop trigger if exists on_run_change on public.runs;
+create trigger on_run_change
+  after insert or delete on public.runs
+  for each row execute function public.bump_profile_points();

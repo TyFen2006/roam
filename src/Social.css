@@ -86,3 +86,25 @@
 .bbar{ flex:1; height:7px; border-radius:999px; background:rgba(255,255,255,.06); overflow:hidden; }
 .bbar span{ display:block; height:100%; border-radius:999px; }
 .bpts{ font-family:var(--mono); font-size:.74rem; font-weight:700; color:var(--paper); width:38px; text-align:right; font-variant-numeric:tabular-nums; }
+
+/* ---- real friends (phase 3a) ---- */
+.s-avatar{ flex:none; border-radius:50%; overflow:hidden; display:flex; align-items:center; justify-content:center; font-weight:800; color:#181206; background:linear-gradient(150deg,var(--marigold),#7a4a12); border:1px solid var(--line); }
+.s-avatar img{ width:100%; height:100%; object-fit:cover; }
+
+.s-search{ display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:4px 4px 4px 12px; }
+.s-search .at{ color:var(--mut); font-weight:700; }
+.s-search input{ flex:1; background:transparent; border:0; color:var(--paper); font-size:.95rem; padding:10px 0; outline:none; }
+.s-search button{ background:var(--marigold); color:#181206; border:0; border-radius:9px; padding:9px 15px; font-weight:700; cursor:pointer; flex:none; }
+
+.req-actions{ display:flex; gap:6px; }
+.btn-accept{ background:var(--marigold); color:#181206; border:0; border-radius:9px; padding:8px 13px; font-weight:700; cursor:pointer; }
+.btn-decline{ background:transparent; color:var(--mut); border:1px solid var(--line); border-radius:9px; padding:8px 11px; cursor:pointer; }
+.btn-add{ background:transparent; color:var(--marigold-2); border:1px solid var(--marigold); border-radius:9px; padding:8px 13px; font-weight:700; cursor:pointer; }
+.btn-add:disabled,.btn-accept:disabled,.btn-decline:disabled{ opacity:.5; }
+.tag-friend{ font-family:var(--mono); font-size:.66rem; color:var(--teal); }
+.tag-sent{ font-family:var(--mono); font-size:.66rem; color:var(--mut); border:1px solid var(--line); border-radius:999px; padding:5px 10px; }
+.badge-count{ font-family:var(--mono); font-size:.6rem; background:var(--marigold); color:#181206; border-radius:999px; padding:2px 7px; margin-left:4px; }
+
+.s-empty{ color:var(--mut); font-size:.9rem; line-height:1.5; padding:6px 2px; }
+.s-err{ color:#ff8a72; font-size:.85rem; background:rgba(255,106,82,.1); border:1px solid #402320; border-radius:10px; padding:9px 12px; margin-top:10px; }
+.s-note{ color:var(--mut); font-size:.85rem; line-height:1.5; margin-top:14px; text-align:center; }
