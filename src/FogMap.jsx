@@ -56,6 +56,21 @@ function haversineKm(a, b) {
   const s = Math.sin(dLat / 2) ** 2 + Math.cos(a[1] * toR) * Math.cos(b[1] * toR) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(s));
 }
+function routeLengthM(coords) { let d = 0; for (let i = 1; i < coords.length; i++) d += haversineKm(coords[i - 1], coords[i]) * 1000; return d; }
+// Ask OSRM's free public server for a real street-following route from (lng,lat)
+// to a random nearby point, so the demo runs on actual roads. Returns [[lng,lat]…] or null.
+async function streetRoute(lng, lat) {
+  const brg = Math.random() * Math.PI * 2, dKm = 0.5 + Math.random() * 0.5;
+  const eLat = lat + (dKm / 111) * Math.cos(brg);
+  const eLng = lng + (dKm / (111 * Math.cos(lat * Math.PI / 180))) * Math.sin(brg);
+  try {
+    const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${lng},${lat};${eLng},${eLat}?overview=full&geometries=geojson`);
+    const j = await r.json();
+    const c = j?.routes?.[0]?.geometry?.coordinates;
+    if (Array.isArray(c) && c.length > 1) return c;
+  } catch { /* offline / blocked → caller falls back to a smooth wander */ }
+  return null;
+}
 function softStops(c, x, y, r, stops) {
   const g = c.createRadialGradient(x, y, 0, x, y, r);
   for (const [o, a] of stops) g.addColorStop(o, `rgba(0,0,0,${a})`);
@@ -167,29 +182,69 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
   }
 
   // ---- demo (simulated walk from wherever the map is centered) ----
-  function playDemo() {
+  async function playDemo() {
     const s = M.current;
     if (status !== 'idle') return;
     stopRun();
-    const c = s.map.getCenter(); let lng = c.lng, lat = c.lat, brg = Math.random() * 360;
-    s.cur = []; s.following = true; setShowRecenter(false);
     setStatus('demo');
+    s.cur = []; s.following = true; setShowRecenter(false);
     s.runStart = { pts: s.pts, dist: s.dist, cells: s.cells.size };
     applyStartBonus();
-    let n = 0;
-    s.demo = setInterval(() => {
-      n++; brg += (Math.random() - 0.5) * 45;
-      const d = 0.00018, rad = brg * Math.PI / 180;
-      lat += d * Math.cos(rad); lng += d * Math.sin(rad) / Math.cos(lat * Math.PI / 180);
-      handlePosition(lng, lat, brg, 2);
-      if (n > 55) finishRun();
-    }, 260);
+    const c = s.map.getCenter();
+    const route = await streetRoute(c.lng, c.lat);   // real streets when available
+    s.demoStop = false;
+    let last = performance.now();
+
+    if (route) {
+      const segLens = [];
+      for (let i = 1; i < route.length; i++) segLens.push(Math.max(0.01, haversineKm(route[i - 1], route[i]) * 1000));
+      const total = segLens.reduce((a, b) => a + b, 0);
+      const speed = Math.max(6, total / 22);          // finish in ~22s
+      const commitEvery = Math.max(3, total / 260);   // ~a point every few metres → smooth line
+      const coordAt = (dist) => {
+        let d = dist;
+        for (let i = 0; i < segLens.length; i++) {
+          if (d <= segLens[i]) { const f = d / segLens[i], a = route[i], b = route[i + 1]; return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; }
+          d -= segLens[i];
+        }
+        return route[route.length - 1];
+      };
+      let traveled = 0, lastCommit = -commitEvery;
+      const frame = (now) => {
+        if (s.demoStop) return;
+        const dt = Math.min(0.05, (now - last) / 1000); last = now;
+        traveled += speed * dt;
+        const p = coordAt(Math.min(traveled, total));
+        if (traveled - lastCommit >= commitEvery) { lastCommit = traveled; handlePosition(p[0], p[1], null, speed); }
+        if (traveled >= total) { handlePosition(p[0], p[1], null, speed); finishRun(); return; }
+        s.demoRaf = requestAnimationFrame(frame);
+      };
+      s.demoRaf = requestAnimationFrame(frame);
+    } else {
+      // fallback: a smooth gentle wander (only if routing is unavailable)
+      let lng = c.lng, lat = c.lat, brg = Math.random() * 360, traveled = 0, lastCommit = 0;
+      const frame = (now) => {
+        if (s.demoStop) return;
+        const dt = Math.min(0.05, (now - last) / 1000); last = now;
+        const move = 12 * dt;
+        brg += (Math.random() - 0.5) * 6;
+        lat += (move / 111000) * Math.cos(brg * Math.PI / 180);
+        lng += (move / (111000 * Math.cos(lat * Math.PI / 180))) * Math.sin(brg * Math.PI / 180);
+        traveled += move;
+        if (traveled - lastCommit >= 5) { lastCommit = traveled; handlePosition(lng, lat, null, 12); }
+        if (traveled >= 600) { finishRun(); return; }
+        s.demoRaf = requestAnimationFrame(frame);
+      };
+      s.demoRaf = requestAnimationFrame(frame);
+    }
   }
 
   function stopRun() {
     const s = M.current;
     if (s.watch != null) { navigator.geolocation.clearWatch(s.watch); s.watch = null; }
     if (s.demo) { clearInterval(s.demo); s.demo = null; }
+    s.demoStop = true;
+    if (s.demoRaf) { cancelAnimationFrame(s.demoRaf); s.demoRaf = 0; }
     releaseWake();
   }
   function finishRun() {

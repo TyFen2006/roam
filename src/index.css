@@ -4,7 +4,7 @@
   --marigold:#e8a33d; --marigold-2:#f4c877; --teal:#33a08f; --pine:#3f8f6d;
   --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
-  --tabh: 66px;
+  --tabh: 80px;
 }
 *{box-sizing:border-box}
 html,body,#root{height:100%}
