@@ -177,3 +177,46 @@ drop trigger if exists on_run_change on public.runs;
 create trigger on_run_change
   after insert or delete on public.runs
   for each row execute function public.bump_profile_points();
+
+
+-- ────────────────────────────────────────────────────────────────────────────
+--  5 · GROUPS  — create / join crews with point leaderboards (Phase 3b)
+-- ────────────────────────────────────────────────────────────────────────────
+create table if not exists public.groups (
+  id         uuid primary key default gen_random_uuid(),
+  name       text not null,
+  emoji      text,
+  blurb      text,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz default now()
+);
+alter table public.groups enable row level security;
+
+drop policy if exists "groups: read all" on public.groups;
+create policy "groups: read all" on public.groups for select using (true);
+
+drop policy if exists "groups: create own" on public.groups;
+create policy "groups: create own" on public.groups for insert with check (auth.uid() = created_by);
+
+drop policy if exists "groups: update own" on public.groups;
+create policy "groups: update own" on public.groups for update using (auth.uid() = created_by);
+
+drop policy if exists "groups: delete own" on public.groups;
+create policy "groups: delete own" on public.groups for delete using (auth.uid() = created_by);
+
+create table if not exists public.group_members (
+  group_id  uuid not null references public.groups(id) on delete cascade,
+  user_id   uuid not null references public.profiles(id) on delete cascade,
+  joined_at timestamptz default now(),
+  primary key (group_id, user_id)
+);
+alter table public.group_members enable row level security;
+
+drop policy if exists "group_members: read all" on public.group_members;
+create policy "group_members: read all" on public.group_members for select using (true);
+
+drop policy if exists "group_members: join self" on public.group_members;
+create policy "group_members: join self" on public.group_members for insert with check (auth.uid() = user_id);
+
+drop policy if exists "group_members: leave self" on public.group_members;
+create policy "group_members: leave self" on public.group_members for delete using (auth.uid() = user_id);
