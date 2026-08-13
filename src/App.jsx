@@ -6,6 +6,7 @@ import Auth from './Auth.jsx';
 import Profile from './Profile.jsx';
 import { supabase, hasSupabase } from './lib/supabase.js';
 import { initials } from './lib/util.js';
+import { stravaExchange } from './lib/strava.js';
 
 const I = {
   map:   <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z M9 4v14 M15 6v14" />,
@@ -58,6 +59,28 @@ export default function App() {
   }, [session]);
 
   useEffect(() => { loadProfile(); }, [loadProfile]);
+
+  // Handle the Strava OAuth redirect (?code=...) after the user connects.
+  useEffect(() => {
+    if (!session?.user) return;
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    if (!code) return;
+    stravaExchange(code).then(async (t) => {
+      if (t && t.access_token) {
+        await supabase.from('strava_accounts').upsert({
+          user_id: session.user.id,
+          athlete_id: t.athlete?.id ?? null,
+          access_token: t.access_token,
+          refresh_token: t.refresh_token,
+          expires_at: t.expires_at,
+        });
+        setTab('you');
+      }
+    }).finally(() => {
+      window.history.replaceState({}, '', window.location.pathname);
+    });
+  }, [session]);
 
   if (hasSupabase && session === undefined) {
     return <div className="app boot"><div className="boot-mark">ROAM</div></div>;

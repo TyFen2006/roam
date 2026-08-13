@@ -220,3 +220,31 @@ create policy "group_members: join self" on public.group_members for insert with
 
 drop policy if exists "group_members: leave self" on public.group_members;
 create policy "group_members: leave self" on public.group_members for delete using (auth.uid() = user_id);
+
+
+-- ────────────────────────────────────────────────────────────────────────────
+--  6 · STRAVA  — import runs recorded on Strava
+-- ────────────────────────────────────────────────────────────────────────────
+-- de-dupe imported runs
+alter table public.runs add column if not exists strava_id bigint;
+create index if not exists runs_strava_idx on public.runs (user_id, strava_id);
+
+-- per-user Strava tokens (readable only by the owner)
+create table if not exists public.strava_accounts (
+  user_id       uuid primary key references public.profiles(id) on delete cascade,
+  athlete_id    bigint,
+  access_token  text,
+  refresh_token text,
+  expires_at    bigint,
+  connected_at  timestamptz default now()
+);
+alter table public.strava_accounts enable row level security;
+
+drop policy if exists "strava: read own" on public.strava_accounts;
+create policy "strava: read own" on public.strava_accounts for select using (auth.uid() = user_id);
+
+drop policy if exists "strava: insert own" on public.strava_accounts;
+create policy "strava: insert own" on public.strava_accounts for insert with check (auth.uid() = user_id);
+
+drop policy if exists "strava: update own" on public.strava_accounts;
+create policy "strava: update own" on public.strava_accounts for update using (auth.uid() = user_id);

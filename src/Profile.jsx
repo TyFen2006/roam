@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { supabase } from './lib/supabase.js';
 import { initials } from './lib/util.js';
+import StravaConnect from './StravaConnect.jsx';
 import './Profile.css';
 
 export default function Profile({ session, profile, onUpdated }) {
@@ -92,6 +93,8 @@ export default function Profile({ session, profile, onUpdated }) {
       {msg && <div className="pe-msg">{msg}</div>}
 
       <button className="pe-save" onClick={save} disabled={busy}>{busy ? '…' : 'Save profile'}</button>
+
+      <StravaConnect userId={session?.user?.id} />
 
       <div className="pe-meta">{(profile?.rank || 'Wanderer')} · Level {profile?.level ?? 1}<br />{session?.user?.email}</div>
       <button className="signout" onClick={() => supabase.auth.signOut()}>Sign out</button>

@@ -50,3 +50,11 @@
 .pe-save:disabled{ opacity:.6; cursor:default; }
 
 .pe-meta{ font-family:var(--mono); font-size:.72rem; color:var(--mut); text-align:center; line-height:1.7; margin-top:8px; }
+
+.strava-card{ width:100%; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:10px; margin-top:6px; }
+.strava-card.off{ color:var(--mut); font-size:.85rem; text-align:center; }
+.strava-head{ font-family:var(--mono); font-size:.66rem; letter-spacing:.1em; text-transform:uppercase; color:var(--mut); }
+.strava-connected{ color:var(--teal); font-weight:700; font-size:.9rem; }
+.strava-btn{ width:100%; padding:12px; border-radius:11px; border:0; cursor:pointer; font-weight:800; font-size:.95rem; background:#fc4c02; color:#fff; }
+.strava-btn:disabled{ opacity:.6; cursor:default; }
+.strava-msg{ font-size:.85rem; color:var(--marigold-2); text-align:center; }

@@ -6,6 +6,9 @@
 [build.environment]
   NODE_VERSION = "20"
 
+[functions]
+  directory = "netlify/functions"
+
 # Single-page app fallback (harmless for Roam's one-page shell)
 [[redirects]]
   from = "/*"
