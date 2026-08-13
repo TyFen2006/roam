@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import FogMap from './FogMap.jsx';
 import Social from './Social.jsx';
 import RunMoods from './RunMoods.jsx';
 import Auth from './Auth.jsx';
+import Profile from './Profile.jsx';
 import { supabase, hasSupabase } from './lib/supabase.js';
+import { initials } from './lib/util.js';
 
 const I = {
   map:   <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z M9 4v14 M15 6v14" />,
@@ -28,18 +30,6 @@ function Placeholder({ icon, title, text }) {
   );
 }
 
-function You({ profile, email }) {
-  return (
-    <div className="placeholder">
-      <div className="ic"><Icon d={I.you} /></div>
-      <h2>{profile?.display_name || 'You'}</h2>
-      <p>{(profile?.rank || 'Wanderer')} · Level {profile?.level ?? 1}<br />{email}</p>
-      <p style={{ fontSize: '.85rem' }}>Your stats and collectible patch gallery land here next.</p>
-      <button className="signout" onClick={() => supabase.auth.signOut()}>Sign out</button>
-    </div>
-  );
-}
-
 const TABS = [
   { id: 'map',    label: 'Map' },
   { id: 'social', label: 'Social' },
@@ -54,7 +44,6 @@ export default function App() {
   const [session, setSession] = useState(hasSupabase ? undefined : null); // undefined = still loading
   const [profile, setProfile] = useState(null);
 
-  // track auth session
   useEffect(() => {
     if (!hasSupabase) return;
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -62,15 +51,13 @@ export default function App() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  // load the logged-in user's profile
-  useEffect(() => {
-    if (session?.user) {
-      supabase.from('profiles').select('display_name,rank,level').eq('id', session.user.id).single()
-        .then(({ data }) => setProfile(data));
-    } else {
-      setProfile(null);
-    }
+  const loadProfile = useCallback(() => {
+    if (!session?.user) { setProfile(null); return; }
+    supabase.from('profiles').select('display_name,username,avatar_url,rank,level').eq('id', session.user.id).single()
+      .then(({ data }) => setProfile(data || null));
   }, [session]);
+
+  useEffect(() => { loadProfile(); }, [loadProfile]);
 
   if (hasSupabase && session === undefined) {
     return <div className="app boot"><div className="boot-mark">ROAM</div></div>;
@@ -80,6 +67,7 @@ export default function App() {
   }
 
   const levelLabel = profile ? `${profile.rank || 'Wanderer'} · Lv ${profile.level ?? 1}` : 'Trailblazer · Lv 6';
+  const ini = initials(profile?.display_name || session?.user?.email);
 
   return (
     <div className="app">
@@ -88,7 +76,12 @@ export default function App() {
           <div className="mk">ROAM</div>
           <div className="sub">running scored on fun, not pace</div>
         </div>
-        <div className="lvl">{levelLabel}</div>
+        <button className="topright" onClick={() => setTab('you')} aria-label="Your profile">
+          <span className="lvl">{levelLabel}</span>
+          <span className="avatar-sm">
+            {profile?.avatar_url ? <img src={profile.avatar_url} alt="" /> : ini}
+          </span>
+        </button>
       </div>
 
       <div className="view">
@@ -101,7 +94,7 @@ export default function App() {
           <Placeholder icon={I.board} title="Scoreboards"
             text="Local, friends, and community boards — competing on exploration and connection, not pace. Group boards already live inside Social." />
         )}
-        {tab === 'you' && <You profile={profile} email={session?.user?.email} />}
+        {tab === 'you' && <Profile session={session} profile={profile} onUpdated={loadProfile} />}
       </div>
 
       <nav className="tabbar">

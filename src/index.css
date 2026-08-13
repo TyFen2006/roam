@@ -28,6 +28,9 @@ button{font-family:inherit}
 .topbar .mk{font-weight:900; font-size:1.25rem; letter-spacing:-.02em}
 .topbar .sub{font-family:var(--mono); font-size:.66rem; color:var(--mut); letter-spacing:.06em}
 .topbar .lvl{font-family:var(--mono); font-size:.68rem; color:var(--marigold); border:1px solid var(--line); border-radius:999px; padding:6px 11px}
+.topbar .topright{display:flex; align-items:center; gap:9px; background:none; border:0; cursor:pointer; padding:0}
+.avatar-sm{width:34px; height:34px; border-radius:50%; overflow:hidden; border:1px solid var(--line); background:linear-gradient(150deg,var(--marigold),#7a4a12); color:#181206; font-weight:800; font-size:.78rem; display:flex; align-items:center; justify-content:center; flex:none}
+.avatar-sm img{width:100%; height:100%; object-fit:cover}
 
 .app.boot{ align-items:center; justify-content:center; }
 .boot-mark{ font-weight:900; font-size:2rem; letter-spacing:-.03em; opacity:.6; animation:bootpulse 1.4s ease-in-out infinite; }
