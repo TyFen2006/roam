@@ -1,10 +1,35 @@
 import { useEffect, useRef, useState } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+// Force the bundler to emit MapLibre's worker file and point MapLibre at it —
+// otherwise the worker 404s (served index.html), and every GeoJSON/vector layer
+// silently fails to render while raster tiles still work.
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
+maplibregl.setWorkerUrl(maplibreWorkerUrl);
 import './FogMap.css';
 
-// Free, no-token dark basemap (CARTO dark-matter, OSM data). Swappable anytime.
-const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+// Free, no-token dark basemap — CARTO "dark_all" RASTER tiles: rock-solid, no key,
+// no glyph/sprite deps (the vector style was silently failing → black map).
+const MAP_STYLE = {
+  version: 8,
+  sources: {
+    basemap: {
+      type: 'raster',
+      tiles: [
+        'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+        'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+        'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+        'https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+      ],
+      tileSize: 256,
+      attribution: '© OpenStreetMap contributors © CARTO',
+    },
+  },
+  layers: [
+    { id: 'bg', type: 'background', paint: { 'background-color': '#0a0e13' } },
+    { id: 'basemap', type: 'raster', source: 'basemap' },
+  ],
+};
 
 const MOOD = {
   Together: { street: 1,   tint: '#e8a33d', blurb: 'connection ×2',  bonus: 50 },
@@ -42,7 +67,9 @@ export default function FogMap({ mood = 'Explore', onEditMood }) {
   const [hud, setHud] = useState({ dist: 0, pts: 0, cells: 0 });
   const [toast, setToast] = useState(null);
   const [showRecenter, setShowRecenter] = useState(false);
+  const [unit, setUnit] = useState(() => { try { return localStorage.getItem('roam.unit') || 'mi'; } catch { return 'mi'; } });
   const toastTimer = useRef(0);
+  const toggleUnit = () => setUnit(u => { const n = u === 'mi' ? 'km' : 'mi'; try { localStorage.setItem('roam.unit', n); } catch {} return n; });
 
   const flash = (t) => { setToast(t); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 2200); };
   const refreshHud = () => setHud({ dist: +M.current.dist.toFixed(2), pts: M.current.pts, cells: M.current.cells.size });
@@ -67,7 +94,7 @@ export default function FogMap({ mood = 'Explore', onEditMood }) {
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
     c.globalCompositeOperation = 'source-over';
     c.clearRect(0, 0, w, h);
-    c.fillStyle = 'rgba(7,10,15,0.62)';
+    c.fillStyle = 'rgba(9,13,20,0.5)';
     c.fillRect(0, 0, w, h);
     c.globalCompositeOperation = 'destination-out';
     c.filter = 'blur(4px)';
@@ -240,7 +267,10 @@ export default function FogMap({ mood = 'Explore', onEditMood }) {
         {status === 'gps' && <div className="rec-badge"><span className="d" /> RECORDING</div>}
         {showRecenter && <button className="recenter" onClick={recenter}>◎ Recenter</button>}
         <div className="hud">
-          <div className="stat"><div className="n">{hud.dist}</div><div className="l">km</div></div>
+          <button className="stat unit" onClick={toggleUnit}>
+            <div className="n">{(unit === 'mi' ? hud.dist * 0.621371 : hud.dist).toFixed(2)}</div>
+            <div className="l">{unit} ⇄</div>
+          </button>
           <div className="stat"><div className="n">{hud.cells}</div><div className="l">explored</div></div>
           <div className="stat pts"><div className="n">{hud.pts}</div><div className="l">points</div></div>
         </div>
