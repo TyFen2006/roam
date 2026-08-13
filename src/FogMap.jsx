@@ -7,6 +7,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 maplibregl.setWorkerUrl(maplibreWorkerUrl);
 import './FogMap.css';
+import { supabase } from './lib/supabase.js';
 
 // Free, no-token dark basemap — CARTO "dark_all" RASTER tiles: rock-solid, no key,
 // no glyph/sprite deps (the vector style was silently failing → black map).
@@ -60,7 +61,7 @@ function softStops(c, x, y, r, stops) {
   c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
 }
 
-export default function FogMap({ mood = 'Explore', onEditMood }) {
+export default function FogMap({ mood = 'Explore', onEditMood, userId }) {
   const mapEl = useRef(null), fogEl = useRef(null);
   const M = useRef({ map: null, fog: null, watch: null, wake: null, demo: null, routes: [], cur: [], cells: new Set(), dist: 0, pts: 0, following: true });
   const [status, setStatus] = useState('idle');       // idle | gps | demo
@@ -139,7 +140,9 @@ export default function FogMap({ mood = 'Explore', onEditMood }) {
     if (!('geolocation' in navigator)) { flash('No GPS on this device'); return; }
     stopRun();
     s.cur = []; s.following = true; setShowRecenter(false);
-    setStatus('gps'); requestWake(); applyStartBonus();
+    setStatus('gps'); requestWake();
+    s.runStart = { pts: s.pts, dist: s.dist, cells: s.cells.size };
+    applyStartBonus();
     s.watch = navigator.geolocation.watchPosition(
       (pos) => { const { longitude, latitude, heading, speed } = pos.coords; handlePosition(longitude, latitude, heading, speed); },
       (err) => flash(err.code === 1 ? 'Location permission denied' : 'Waiting for GPS…'),
@@ -154,7 +157,9 @@ export default function FogMap({ mood = 'Explore', onEditMood }) {
     stopRun();
     const c = s.map.getCenter(); let lng = c.lng, lat = c.lat, brg = Math.random() * 360;
     s.cur = []; s.following = true; setShowRecenter(false);
-    setStatus('demo'); applyStartBonus();
+    setStatus('demo');
+    s.runStart = { pts: s.pts, dist: s.dist, cells: s.cells.size };
+    applyStartBonus();
     let n = 0;
     s.demo = setInterval(() => {
       n++; brg += (Math.random() - 0.5) * 45;
@@ -174,8 +179,22 @@ export default function FogMap({ mood = 'Explore', onEditMood }) {
   function finishRun() {
     const s = M.current;
     stopRun();
-    if (s.cur.length > 1) s.routes.push(s.cur);
-    s.cur = []; save();
+    if (s.cur.length > 1) {
+      const run = s.cur;
+      s.routes.push(run);
+      // this run's own contribution (delta since it started)
+      const rPts = Math.max(0, s.pts - (s.runStart?.pts ?? s.pts));
+      const rDist = Math.max(0, s.dist - (s.runStart?.dist ?? s.dist));
+      const rCells = Math.max(0, s.cells.size - (s.runStart?.cells ?? s.cells.size));
+      save(); // local mirror (offline safety)
+      if (userId && supabase) {
+        supabase.from('runs').insert({
+          user_id: userId, route: run, mood,
+          distance_km: +rDist.toFixed(3), points: rPts, cells: rCells,
+        }).then(({ error }) => { if (error) flash('Saved offline (sync later)'); });
+      }
+    }
+    s.cur = []; s.runStart = null;
     s.map?.getSource('me')?.setData(ptFC(null));
     setStatus('idle');
   }
@@ -184,6 +203,7 @@ export default function FogMap({ mood = 'Explore', onEditMood }) {
     stopRun();
     s.routes = []; s.cur = []; s.cells = new Set(); s.pts = 0; s.dist = 0;
     localStorage.removeItem(STORE_KEY);
+    if (userId && supabase) supabase.from('runs').delete().eq('user_id', userId).then(() => {});
     s.map?.getSource('trail')?.setData(lineFC([]));
     s.map?.getSource('me')?.setData(ptFC(null));
     refreshHud(); drawFog(); setStatus('idle');
@@ -203,13 +223,30 @@ export default function FogMap({ mood = 'Explore', onEditMood }) {
   function save() {
     try { localStorage.setItem(STORE_KEY, JSON.stringify({ routes: M.current.routes, pts: M.current.pts, cells: [...M.current.cells], dist: M.current.dist })); } catch {}
   }
-  function loadSaved() {
-    let d; try { d = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); } catch { d = null; }
-    if (!d) return;
-    M.current.routes = d.routes || []; M.current.pts = d.pts || 0;
-    M.current.cells = new Set(d.cells || []); M.current.dist = d.dist || 0;
-    M.current.map.getSource('trail')?.setData(lineFC(M.current.routes));
+  async function loadSaved() {
+    const s = M.current;
+    let routes = null, pts = 0, dist = 0;
+    // Source of truth = your Supabase runs (syncs across devices). Fall back to
+    // local mirror if logged out or offline.
+    if (userId && supabase) {
+      const { data, error } = await supabase.from('runs').select('route,distance_km,points').eq('user_id', userId);
+      if (!error && Array.isArray(data)) {
+        routes = data.map(r => r.route).filter(r => Array.isArray(r) && r.length > 1);
+        pts = data.reduce((a, r) => a + (r.points || 0), 0);
+        dist = data.reduce((a, r) => a + Number(r.distance_km || 0), 0);
+      }
+    }
+    if (routes === null) {
+      let d; try { d = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); } catch { d = null; }
+      if (d) { routes = d.routes || []; pts = d.pts || 0; dist = d.dist || 0; }
+    }
+    if (!routes) return;
+    s.routes = routes; s.pts = pts; s.dist = dist;
+    s.cells = new Set();
+    for (const r of routes) for (const p of r) s.cells.add(cellKey(p[0], p[1]));
+    s.map?.getSource('trail')?.setData(lineFC(routes));
     refreshHud();
+    drawFog();
   }
   function locateOnce() {
     if (!('geolocation' in navigator)) return;

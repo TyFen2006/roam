@@ -85,7 +85,7 @@ export default function App() {
       </div>
 
       <div className="view">
-        {tab === 'map' && <FogMap mood={mood} onEditMood={() => setTab('start')} />}
+        {tab === 'map' && <FogMap mood={mood} onEditMood={() => setTab('start')} userId={session?.user?.id} />}
         {tab === 'social' && <Social />}
         {tab === 'start' && (
           <RunMoods mood={mood} onPick={(m) => { setMood(m); setTab('map'); }} />
