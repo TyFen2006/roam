@@ -29,6 +29,16 @@ button{font-family:inherit}
 .topbar .sub{font-family:var(--mono); font-size:.66rem; color:var(--mut); letter-spacing:.06em}
 .topbar .lvl{font-family:var(--mono); font-size:.68rem; color:var(--marigold); border:1px solid var(--line); border-radius:999px; padding:6px 11px}
 
+.app.boot{ align-items:center; justify-content:center; }
+.boot-mark{ font-weight:900; font-size:2rem; letter-spacing:-.03em; opacity:.6; animation:bootpulse 1.4s ease-in-out infinite; }
+@keyframes bootpulse{ 0%,100%{opacity:.35} 50%{opacity:.8} }
+
+.signout{
+  margin-top:18px; padding:11px 20px; border-radius:11px; cursor:pointer;
+  background:transparent; border:1px solid var(--line); color:var(--mut); font-weight:600; font-size:.9rem;
+}
+.signout:hover{ border-color:#ff6a52; color:#ff8a72; }
+
 /* generic placeholder tab */
 .placeholder{padding:40px 22px; display:flex; flex-direction:column; align-items:center; text-align:center; gap:14px; color:var(--mut)}
 .placeholder .ic{width:56px; height:56px; opacity:.7}

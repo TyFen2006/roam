@@ -1,0 +1,40 @@
+.auth{
+  min-height:100dvh; max-width:520px; margin:0 auto; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:26px; padding:28px 22px;
+  background:radial-gradient(700px 460px at 80% -8%, rgba(232,163,61,.10), transparent 60%), var(--ink);
+}
+.auth-hero{ text-align:center; }
+.auth-mark{ font-weight:900; font-size:2.6rem; letter-spacing:-.03em; }
+.auth-tag{ font-family:var(--mono); font-size:.72rem; color:var(--mut); letter-spacing:.06em; margin-top:4px; }
+
+.auth-card{
+  width:100%; background:var(--panel); border:1px solid var(--line); border-radius:18px;
+  padding:22px; display:flex; flex-direction:column; gap:14px;
+  box-shadow:0 30px 60px -34px rgba(0,0,0,.85);
+}
+.auth-switch{ display:flex; gap:6px; background:var(--ink-2); border:1px solid var(--line); border-radius:12px; padding:4px; }
+.auth-switch button{
+  flex:1; padding:9px; border:0; border-radius:9px; cursor:pointer; font-weight:700; font-size:.9rem;
+  background:transparent; color:var(--mut);
+}
+.auth-switch button.on{ background:var(--marigold); color:#181206; }
+
+.fld{ display:flex; flex-direction:column; gap:6px; }
+.fld span{ font-family:var(--mono); font-size:.64rem; letter-spacing:.08em; text-transform:uppercase; color:var(--mut); }
+.fld input{
+  background:var(--ink-2); border:1px solid var(--line); border-radius:11px; padding:12px 13px;
+  color:var(--paper); font-size:1rem; font-family:var(--sans);
+}
+.fld input:focus{ outline:none; border-color:var(--marigold); }
+
+.auth-err{ font-size:.85rem; color:#ff8a72; background:rgba(255,106,82,.1); border:1px solid #402320; border-radius:10px; padding:9px 12px; }
+.auth-msg{ font-size:.85rem; color:var(--teal); background:rgba(51,160,143,.1); border:1px solid #1f4a44; border-radius:10px; padding:9px 12px; }
+
+.auth-go{
+  margin-top:4px; padding:13px; border-radius:12px; border:0; cursor:pointer;
+  background:var(--marigold); color:#181206; font-weight:800; font-size:1rem;
+}
+.auth-go:disabled{ opacity:.6; cursor:default; }
+
+.auth-foot{ text-align:center; font-size:.85rem; color:var(--mut); margin:2px 0 0; }
+.auth-foot button{ background:none; border:0; color:var(--marigold-2); cursor:pointer; font-size:.85rem; font-weight:600; padding:0; }

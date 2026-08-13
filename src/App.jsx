@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import FogMap from './FogMap.jsx';
 import Social from './Social.jsx';
 import RunMoods from './RunMoods.jsx';
+import Auth from './Auth.jsx';
+import { supabase, hasSupabase } from './lib/supabase.js';
 
 const I = {
   map:   <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z M9 4v14 M15 6v14" />,
@@ -26,6 +28,18 @@ function Placeholder({ icon, title, text }) {
   );
 }
 
+function You({ profile, email }) {
+  return (
+    <div className="placeholder">
+      <div className="ic"><Icon d={I.you} /></div>
+      <h2>{profile?.display_name || 'You'}</h2>
+      <p>{(profile?.rank || 'Wanderer')} · Level {profile?.level ?? 1}<br />{email}</p>
+      <p style={{ fontSize: '.85rem' }}>Your stats and collectible patch gallery land here next.</p>
+      <button className="signout" onClick={() => supabase.auth.signOut()}>Sign out</button>
+    </div>
+  );
+}
+
 const TABS = [
   { id: 'map',    label: 'Map' },
   { id: 'social', label: 'Social' },
@@ -37,6 +51,35 @@ const TABS = [
 export default function App() {
   const [tab, setTab] = useState('map');
   const [mood, setMood] = useState('Explore');
+  const [session, setSession] = useState(hasSupabase ? undefined : null); // undefined = still loading
+  const [profile, setProfile] = useState(null);
+
+  // track auth session
+  useEffect(() => {
+    if (!hasSupabase) return;
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  // load the logged-in user's profile
+  useEffect(() => {
+    if (session?.user) {
+      supabase.from('profiles').select('display_name,rank,level').eq('id', session.user.id).single()
+        .then(({ data }) => setProfile(data));
+    } else {
+      setProfile(null);
+    }
+  }, [session]);
+
+  if (hasSupabase && session === undefined) {
+    return <div className="app boot"><div className="boot-mark">ROAM</div></div>;
+  }
+  if (hasSupabase && !session) {
+    return <Auth />;
+  }
+
+  const levelLabel = profile ? `${profile.rank || 'Wanderer'} · Lv ${profile.level ?? 1}` : 'Trailblazer · Lv 6';
 
   return (
     <div className="app">
@@ -45,7 +88,7 @@ export default function App() {
           <div className="mk">ROAM</div>
           <div className="sub">running scored on fun, not pace</div>
         </div>
-        <div className="lvl">Trailblazer · Lv 6</div>
+        <div className="lvl">{levelLabel}</div>
       </div>
 
       <div className="view">
@@ -58,10 +101,7 @@ export default function App() {
           <Placeholder icon={I.board} title="Scoreboards"
             text="Local, friends, and community boards — competing on exploration and connection, not pace. Group boards already live inside Social." />
         )}
-        {tab === 'you' && (
-          <Placeholder icon={I.you} title="Your Patches"
-            text="Your own stats and collectible patch gallery — Sunrise Club, 10 New Faces, Neighborhood Complete. Built next." />
-        )}
+        {tab === 'you' && <You profile={profile} email={session?.user?.email} />}
       </div>
 
       <nav className="tabbar">
