@@ -8,6 +8,7 @@ import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&ur
 maplibregl.setWorkerUrl(maplibreWorkerUrl);
 import './FogMap.css';
 import { supabase } from './lib/supabase.js';
+import { initials } from './lib/util.js';
 
 // Free, no-token dark basemap — CARTO "dark_all" RASTER tiles: rock-solid, no key,
 // no glyph/sprite deps (the vector style was silently failing → black map).
@@ -60,8 +61,14 @@ function softStops(c, x, y, r, stops) {
   for (const [o, a] of stops) g.addColorStop(o, `rgba(0,0,0,${a})`);
   c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
 }
+// stable color per user id (for live-run markers)
+function colorFor(id) {
+  let h = 0; const str = String(id || '');
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % 360;
+  return `hsl(${h} 72% 58%)`;
+}
 
-export default function FogMap({ mood = 'Explore', onEditMood, userId }) {
+export default function FogMap({ mood = 'Explore', onEditMood, userId, myName }) {
   const mapEl = useRef(null), fogEl = useRef(null);
   const M = useRef({ map: null, fog: null, watch: null, wake: null, demo: null, routes: [], cur: [], cells: new Set(), dist: 0, pts: 0, following: true });
   const [status, setStatus] = useState('idle');       // idle | gps | demo
@@ -71,6 +78,10 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId }) {
   const [unit, setUnit] = useState(() => { try { return localStorage.getItem('roam.unit') || 'mi'; } catch { return 'mi'; } });
   const toastTimer = useRef(0);
   const toggleUnit = () => setUnit(u => { const n = u === 'mi' ? 'km' : 'mi'; try { localStorage.setItem('roam.unit', n); } catch {} return n; });
+  const [liveCode, setLiveCode] = useState(null);
+  const [liveOpen, setLiveOpen] = useState(false);
+  const [joinInput, setJoinInput] = useState('');
+  const [roster, setRoster] = useState([]);
 
   const flash = (t) => { setToast(t); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 2200); };
   const refreshHud = () => setHud({ dist: +M.current.dist.toFixed(2), pts: M.current.pts, cells: M.current.cells.size });
@@ -130,6 +141,11 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId }) {
       const opts = { center: [lng, lat], duration: 800, essential: true };
       if (heading != null && !Number.isNaN(heading) && speed > 0.6) opts.bearing = heading;
       s.map.easeTo(opts);
+    }
+    s.lastPos = [lng, lat];
+    if (s.live && supabase) {
+      const now = Date.now();
+      if (!s.liveTrackAt || now - s.liveTrackAt > 700) { s.liveTrackAt = now; trackPresence(); }
     }
     refreshHud();
   }
@@ -255,10 +271,72 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId }) {
         const { longitude, latitude } = pos.coords;
         M.current.map.easeTo({ center: [longitude, latitude], zoom: 16, duration: 800 });
         M.current.map.getSource('me')?.setData(ptFC([longitude, latitude]));
+        M.current.lastPos = [longitude, latitude];
+        if (M.current.live) trackPresence();
       },
       () => flash('Turn on location to center on you'),
       { enableHighAccuracy: true, timeout: 10000 }
     );
+  }
+
+  // ---- live "run together" (Supabase Realtime presence) ----
+  function upsertRunner(id, name, color, lng, lat) {
+    const live = M.current.live;
+    if (!live || !M.current.map) return;
+    let mk = live.markers.get(id);
+    if (!mk) {
+      const el = document.createElement('div');
+      el.className = 'runner-marker';
+      el.style.setProperty('--rc', color);
+      el.textContent = initials(name);
+      mk = new maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(M.current.map);
+      live.markers.set(id, mk);
+    } else {
+      mk.setLngLat([lng, lat]);
+    }
+  }
+  function onPresenceSync() {
+    const live = M.current.live;
+    if (!live?.channel) return;
+    const state = live.channel.presenceState();
+    const present = new Set(), list = [];
+    Object.values(state).forEach(arr => {
+      const p = arr[arr.length - 1];
+      if (!p || !p.id) return;
+      list.push({ id: p.id, name: p.name });
+      if (p.id !== userId && p.lng != null && p.lat != null) { upsertRunner(p.id, p.name, p.color, p.lng, p.lat); present.add(p.id); }
+    });
+    for (const [id, mk] of live.markers) { if (!present.has(id)) { mk.remove(); live.markers.delete(id); } }
+    setRoster(list);
+  }
+  async function trackPresence() {
+    const s = M.current;
+    if (!s.live?.channel) return;
+    const last = s.cur[s.cur.length - 1] || s.lastPos || null;
+    try {
+      await s.live.channel.track({ id: userId, name: myName || 'Runner', color: colorFor(userId), lng: last ? last[0] : null, lat: last ? last[1] : null });
+    } catch { /* ignore */ }
+  }
+  function joinLive(code) {
+    if (!supabase || !userId) { flash('Log in to run together'); return; }
+    leaveLive();
+    const s = M.current;
+    const channel = supabase.channel(`roam-run-${code}`, { config: { presence: { key: userId } } });
+    s.live = { channel, markers: new Map(), code };
+    channel.on('presence', { event: 'sync' }, onPresenceSync);
+    channel.subscribe(async (st) => {
+      if (st === 'SUBSCRIBED') { await trackPresence(); setLiveCode(code); setLiveOpen(false); flash('Live run · code ' + code); }
+    });
+  }
+  function startLive() { joinLive(Math.random().toString(36).slice(2, 6).toUpperCase()); }
+  function leaveLive() {
+    const s = M.current;
+    if (s.live) {
+      for (const [, mk] of s.live.markers) mk.remove();
+      try { s.live.channel.unsubscribe(); supabase?.removeChannel(s.live.channel); } catch {}
+      s.live = null;
+    }
+    setLiveCode(null); setRoster([]);
   }
 
   // ---- mount map ----
@@ -284,7 +362,7 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId }) {
     map.on('dragstart', () => { M.current.following = false; setShowRecenter(true); });
     const onResize = () => { map.resize(); };
     window.addEventListener('resize', onResize);
-    return () => { stopRun(); window.removeEventListener('resize', onResize); clearTimeout(toastTimer.current); map.remove(); M.current.map = null; };
+    return () => { stopRun(); leaveLive(); window.removeEventListener('resize', onResize); clearTimeout(toastTimer.current); map.remove(); M.current.map = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -303,6 +381,32 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId }) {
         )}
         {status === 'gps' && <div className="rec-badge"><span className="d" /> RECORDING</div>}
         {showRecenter && <button className="recenter" onClick={recenter}>◎ Recenter</button>}
+        {!liveCode ? (
+          <button className="live-btn" onClick={() => setLiveOpen(true)}>👥 Run live</button>
+        ) : (
+          <div className="live-bar">
+            <span className="live-code">◉ {liveCode}</span>
+            <div className="live-roster">
+              {roster.map(r => <span key={r.id} className="lr-dot" title={r.name} style={{ '--rc': colorFor(r.id) }}>{initials(r.name)}</span>)}
+            </div>
+            <button className="live-leave" onClick={leaveLive}>Leave</button>
+          </div>
+        )}
+        {liveOpen && (
+          <div className="live-sheet">
+            <div className="live-sheet-inner">
+              <div className="ls-title">Run together</div>
+              <p className="ls-sub">Share a code with a friend and watch each other move in real time.</p>
+              <button className="ls-start" onClick={startLive}>Start a live run</button>
+              <div className="ls-or">— or join —</div>
+              <div className="ls-join">
+                <input value={joinInput} onChange={e => setJoinInput(e.target.value.toUpperCase())} placeholder="CODE" maxLength={4} />
+                <button onClick={() => joinInput.trim() && joinLive(joinInput.trim())}>Join</button>
+              </div>
+              <button className="ls-close" onClick={() => setLiveOpen(false)}>Cancel</button>
+            </div>
+          </div>
+        )}
         <div className="hud">
           <button className="stat unit" onClick={toggleUnit}>
             <div className="n">{(unit === 'mi' ? hud.dist * 0.621371 : hud.dist).toFixed(2)}</div>
