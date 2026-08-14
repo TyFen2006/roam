@@ -30,4 +30,16 @@
 
 .q-empty{ color:var(--mut); font-size:.9rem; padding:10px 2px; }
 .q-err{ color:#ff8a72; font-size:.85rem; background:rgba(255,106,82,.1); border:1px solid #402320; border-radius:10px; padding:9px 12px; }
+.q-reward{ font-family:var(--mono); font-size:.6rem; color:var(--marigold-2); margin-top:7px; }
 .q-note{ font-family:var(--mono); font-size:.68rem; color:var(--dim); line-height:1.6; text-align:center; margin-top:14px; }
+
+/* celebration */
+.q-celebrate{ position:fixed; inset:0; z-index:60; background:rgba(4,7,11,.66); display:flex; align-items:center; justify-content:center; padding:24px; }
+.q-celebrate-in{ width:100%; max-width:320px; background:var(--panel); border:1px solid var(--marigold); border-radius:20px; padding:26px 22px; text-align:center; box-shadow:0 30px 70px -20px rgba(0,0,0,.8); animation:qpop .35s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes qpop{ from{ opacity:0; transform:scale(.9) translateY(10px);} to{ opacity:1; transform:none; } }
+.q-conf{ font-size:2.6rem; animation:qbounce 1s ease infinite; }
+@keyframes qbounce{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-6px);} }
+.q-celebrate-in h3{ margin:8px 0 12px; font-size:1.3rem; }
+.q-reward-line{ font-size:.92rem; color:var(--paper); margin:6px 0; line-height:1.4; }
+.q-reward-line b{ color:var(--marigold-2); }
+.q-celebrate-btn{ margin-top:16px; background:var(--marigold); color:#181206; border:0; border-radius:12px; padding:12px 28px; font-weight:800; font-size:1rem; cursor:pointer; }

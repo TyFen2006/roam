@@ -1,7 +1,9 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from './lib/supabase.js';
 import { initials } from './lib/util.js';
+import { levelFromPoints } from './lib/levels.js';
 import StravaConnect from './StravaConnect.jsx';
+import PatchesGallery from './Patches.jsx';
 import './Profile.css';
 
 export default function Profile({ session, profile, onUpdated }) {
@@ -13,8 +15,16 @@ export default function Profile({ session, profile, onUpdated }) {
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
   const fileRef = useRef(null);
+  const [patches, setPatches] = useState([]);
+
+  useEffect(() => {
+    if (!session?.user) return;
+    supabase.from('user_patches').select('patch_key').eq('user_id', session.user.id)
+      .then(({ data }) => setPatches((data || []).map(p => p.patch_key)));
+  }, [session]);
 
   const ini = initials(name || profile?.display_name || session?.user?.email);
+  const lv = levelFromPoints(profile?.points || 0);
 
   async function onPickPhoto(e) {
     const file = e.target.files?.[0];
@@ -93,6 +103,14 @@ export default function Profile({ session, profile, onUpdated }) {
       {msg && <div className="pe-msg">{msg}</div>}
 
       <button className="pe-save" onClick={save} disabled={busy}>{busy ? '…' : 'Save profile'}</button>
+
+      <div className="pe-level">
+        <div className="pe-level-top"><span className="pe-rank">{lv.rank}</span><span className="pe-lvl">Lv {lv.level}</span></div>
+        <div className="pe-level-bar"><span style={{ width: (lv.into / lv.span * 100) + '%' }} /></div>
+        <div className="pe-level-sub">{profile?.points ?? 0} pts · {lv.toNext} to Lv {lv.level + 1}</div>
+      </div>
+
+      <PatchesGallery earned={patches} />
 
       <StravaConnect userId={session?.user?.id} />
 

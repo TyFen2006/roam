@@ -51,6 +51,14 @@
 
 .pe-meta{ font-family:var(--mono); font-size:.72rem; color:var(--mut); text-align:center; line-height:1.7; margin-top:8px; }
 
+.pe-level{ width:100%; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 16px; }
+.pe-level-top{ display:flex; align-items:baseline; justify-content:space-between; }
+.pe-rank{ font-weight:800; font-size:1.05rem; color:var(--marigold-2); }
+.pe-lvl{ font-family:var(--mono); font-size:.8rem; color:var(--mut); }
+.pe-level-bar{ height:8px; border-radius:999px; background:rgba(255,255,255,.07); overflow:hidden; margin:10px 0 8px; }
+.pe-level-bar span{ display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,var(--marigold),var(--marigold-2)); transition:width .5s ease; }
+.pe-level-sub{ font-family:var(--mono); font-size:.64rem; color:var(--mut); }
+
 .strava-card{ width:100%; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:10px; margin-top:6px; }
 .strava-card.off{ color:var(--mut); font-size:.85rem; text-align:center; }
 .strava-head{ font-family:var(--mono); font-size:.66rem; letter-spacing:.1em; text-transform:uppercase; color:var(--mut); }

@@ -248,3 +248,41 @@ create policy "strava: insert own" on public.strava_accounts for insert with che
 
 drop policy if exists "strava: update own" on public.strava_accounts;
 create policy "strava: update own" on public.strava_accounts for update using (auth.uid() = user_id);
+
+
+-- ────────────────────────────────────────────────────────────────────────────
+--  7 · REWARDS  — quest claims, earned patches, atomic points bump
+-- ────────────────────────────────────────────────────────────────────────────
+-- one claim per (user, quest, week) so a weekly reward is granted only once
+create table if not exists public.quest_claims (
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  quest_id   text not null,
+  week       date not null,
+  created_at timestamptz default now(),
+  primary key (user_id, quest_id, week)
+);
+alter table public.quest_claims enable row level security;
+drop policy if exists "quest_claims: read own" on public.quest_claims;
+create policy "quest_claims: read own" on public.quest_claims for select using (auth.uid() = user_id);
+drop policy if exists "quest_claims: insert own" on public.quest_claims;
+create policy "quest_claims: insert own" on public.quest_claims for insert with check (auth.uid() = user_id);
+
+-- permanent collectible patches
+create table if not exists public.user_patches (
+  user_id   uuid not null references public.profiles(id) on delete cascade,
+  patch_key text not null,
+  earned_at timestamptz default now(),
+  primary key (user_id, patch_key)
+);
+alter table public.user_patches enable row level security;
+drop policy if exists "user_patches: read all" on public.user_patches;
+create policy "user_patches: read all" on public.user_patches for select using (true);
+drop policy if exists "user_patches: insert own" on public.user_patches;
+create policy "user_patches: insert own" on public.user_patches for insert with check (auth.uid() = user_id);
+
+-- atomic bonus-points bump on the caller's own profile
+create or replace function public.increment_points(amt int)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  update public.profiles set points = coalesce(points, 0) + amt where id = auth.uid();
+end; $$;

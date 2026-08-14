@@ -8,6 +8,7 @@ import Quests from './Quests.jsx';
 import { supabase, hasSupabase } from './lib/supabase.js';
 import { initials } from './lib/util.js';
 import { stravaExchange } from './lib/strava.js';
+import { levelFromPoints } from './lib/levels.js';
 
 const I = {
   map:   <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z M9 4v14 M15 6v14" />,
@@ -55,7 +56,7 @@ export default function App() {
 
   const loadProfile = useCallback(() => {
     if (!session?.user) { setProfile(null); return; }
-    supabase.from('profiles').select('display_name,username,avatar_url,rank,level').eq('id', session.user.id).single()
+    supabase.from('profiles').select('display_name,username,avatar_url,points,rank,level').eq('id', session.user.id).single()
       .then(({ data }) => setProfile(data || null));
   }, [session]);
 
@@ -90,7 +91,8 @@ export default function App() {
     return <Auth />;
   }
 
-  const levelLabel = profile ? `${profile.rank || 'Wanderer'} · Lv ${profile.level ?? 1}` : 'Trailblazer · Lv 6';
+  const lv = levelFromPoints(profile?.points || 0);
+  const levelLabel = profile ? `${lv.rank} · Lv ${lv.level}` : 'Wanderer · Lv 1';
   const ini = initials(profile?.display_name || session?.user?.email);
 
   return (
@@ -114,7 +116,7 @@ export default function App() {
         {tab === 'start' && (
           <RunMoods mood={mood} onPick={(m) => { setMood(m); setTab('map'); }} />
         )}
-        {tab === 'quests' && <Quests userId={session?.user?.id} />}
+        {tab === 'quests' && <Quests userId={session?.user?.id} onReward={loadProfile} />}
         {tab === 'you' && <Profile session={session} profile={profile} onUpdated={loadProfile} />}
       </div>
 
