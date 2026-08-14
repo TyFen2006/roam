@@ -71,6 +71,28 @@ async function streetRoute(lng, lat) {
   } catch { /* offline / blocked → caller falls back to a smooth wander */ }
   return null;
 }
+// Monday-of-this-week as YYYY-MM-DD (matches the Quests tab).
+function weekMonday() {
+  const d = new Date(); const off = (d.getDay() + 6) % 7;
+  d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - off);
+  return d.toISOString().slice(0, 10);
+}
+// Snap a point to the nearest road (so the weekly spot is reachable).
+async function nearestRoad(lng, lat) {
+  try {
+    const r = await fetch(`https://router.project-osrm.org/nearest/v1/driving/${lng},${lat}?number=1`);
+    const j = await r.json();
+    const loc = j?.waypoints?.[0]?.location;
+    if (loc) return { lng: loc[0], lat: loc[1] };
+  } catch { /* fall through */ }
+  return { lng, lat };
+}
+async function genSpot(nearLng, nearLat) {
+  const brg = Math.random() * Math.PI * 2, dKm = 0.8 + Math.random() * 0.5;
+  const lat = nearLat + (dKm / 111) * Math.cos(brg);
+  const lng = nearLng + (dKm / (111 * Math.cos(nearLat * Math.PI / 180))) * Math.sin(brg);
+  return nearestRoad(lng, lat);
+}
 function softStops(c, x, y, r, stops) {
   const g = c.createRadialGradient(x, y, 0, x, y, r);
   for (const [o, a] of stops) g.addColorStop(o, `rgba(0,0,0,${a})`);
@@ -97,6 +119,7 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
   const [liveOpen, setLiveOpen] = useState(false);
   const [joinInput, setJoinInput] = useState('');
   const [roster, setRoster] = useState([]);
+  const [spot, setSpot] = useState(null);
 
   const flash = (t) => { setToast(t); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 2200); };
   const refreshHud = () => setHud({ dist: +M.current.dist.toFixed(2), pts: M.current.pts, cells: M.current.cells.size });
@@ -162,6 +185,7 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
       const now = Date.now();
       if (!s.liveTrackAt || now - s.liveTrackAt > 700) { s.liveTrackAt = now; trackPresence(); }
     }
+    if (s.spot && !s.spot.reached && haversineKm([lng, lat], [s.spot.lng, s.spot.lat]) < 0.09) markSpotReached();
     refreshHud();
   }
 
@@ -319,8 +343,42 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
     refreshHud();
     drawFog();
   }
+  // ---- weekly "run to a spot" quest ----
+  function renderSpot(s) {
+    M.current.spot = s; setSpot(s);
+    const map = M.current.map; if (!map || !s) return;
+    let mk = M.current.spotMarker;
+    if (!mk) {
+      const el = document.createElement('div');
+      el.className = 'spot-marker';
+      mk = new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([s.lng, s.lat]).addTo(map);
+      M.current.spotMarker = mk;
+    }
+    mk.setLngLat([s.lng, s.lat]);
+    const el = mk.getElement();
+    el.className = 'spot-marker' + (s.reached ? ' reached' : '');
+    el.textContent = s.reached ? '✓' : '📍';
+  }
+  async function ensureSpot(nearLng, nearLat) {
+    if (!userId || !supabase || M.current.spot) return;
+    const week = weekMonday();
+    const { data } = await supabase.from('quest_spots').select('lng,lat,reached').eq('user_id', userId).eq('week', week).maybeSingle();
+    if (data) { renderSpot({ ...data, week }); return; }
+    const g = await genSpot(nearLng, nearLat);
+    const ins = await supabase.from('quest_spots').insert({ user_id: userId, week, lng: g.lng, lat: g.lat }).select('lng,lat,reached').maybeSingle();
+    if (ins.data) { renderSpot({ ...ins.data, week }); return; }
+    const { data: d2 } = await supabase.from('quest_spots').select('lng,lat,reached').eq('user_id', userId).eq('week', week).maybeSingle();
+    if (d2) renderSpot({ ...d2, week });
+  }
+  async function markSpotReached() {
+    const s = M.current.spot; if (!s || s.reached) return;
+    renderSpot({ ...s, reached: true });
+    flash('🎯 Reached this week\'s spot! Claim it in Quests');
+    try { await supabase.from('quest_spots').update({ reached: true }).eq('user_id', userId).eq('week', weekMonday()); } catch {}
+  }
+
   function locateOnce() {
-    if (!('geolocation' in navigator)) return;
+    if (!('geolocation' in navigator)) { if (M.current.map) { const c = M.current.map.getCenter(); ensureSpot(c.lng, c.lat); } return; }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { longitude, latitude } = pos.coords;
@@ -328,8 +386,9 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
         M.current.map.getSource('me')?.setData(ptFC([longitude, latitude]));
         M.current.lastPos = [longitude, latitude];
         if (M.current.live) trackPresence();
+        ensureSpot(longitude, latitude);
       },
-      () => flash('Turn on location to center on you'),
+      () => { flash('Turn on location to center on you'); const c = M.current.map.getCenter(); ensureSpot(c.lng, c.lat); },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }
@@ -417,7 +476,7 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
     map.on('dragstart', () => { M.current.following = false; setShowRecenter(true); });
     const onResize = () => { map.resize(); };
     window.addEventListener('resize', onResize);
-    return () => { stopRun(); leaveLive(); window.removeEventListener('resize', onResize); clearTimeout(toastTimer.current); map.remove(); M.current.map = null; };
+    return () => { stopRun(); leaveLive(); if (M.current.spotMarker) { M.current.spotMarker.remove(); M.current.spotMarker = null; } window.removeEventListener('resize', onResize); clearTimeout(toastTimer.current); map.remove(); M.current.map = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

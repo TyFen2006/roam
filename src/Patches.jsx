@@ -3,6 +3,8 @@ import './Patches.css';
 
 function patchIcon(k) {
   switch (k) {
+    case 'explorer': // location pin
+      return <><path d="M22 11c-4.4 0-8 3.4-8 7.6 0 5.4 8 13.4 8 13.4s8-8 8-13.4c0-4.2-3.6-7.6-8-7.6z" fill="none" stroke="var(--pc)" strokeWidth="2" strokeLinejoin="round" /><circle cx="22" cy="18.5" r="2.6" fill="none" stroke="var(--pc)" strokeWidth="2" /></>;
     case 'trailblazer': // map / route
       return <><path d="M15 14l7-3 7 3v16l-7-3-7 3z" fill="none" stroke="var(--pc)" strokeWidth="2" strokeLinejoin="round" /><path d="M22 11v16" stroke="var(--pc)" strokeWidth="1.4" /><path d="M17 22c3 0 4-3 7-3s4 3 7 3" stroke="var(--pc)" strokeWidth="1.8" fill="none" strokeLinecap="round" /></>;
     case 'roadrunner': // lightning

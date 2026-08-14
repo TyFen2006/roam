@@ -26,6 +26,7 @@ export function levelFromPoints(points = 0) {
 
 // quest id -> reward (bonus points + the patch it unlocks)
 export const QUEST_REWARDS = {
+  spot:    { points: 60, patch: 'explorer' },
   streets: { points: 50, patch: 'trailblazer' },
   dist:    { points: 50, patch: 'roadrunner' },
   freq:    { points: 40, patch: 'streak' },
@@ -34,10 +35,11 @@ export const QUEST_REWARDS = {
 };
 
 export const PATCHES = {
+  explorer:    { label: 'Explorer', color: '#7fb0b6' },
   trailblazer: { label: 'Trailblazer', color: '#e8654f' },
   roadrunner:  { label: 'Road Runner', color: '#e8a33d' },
   streak:      { label: 'On a Streak', color: '#f0a63c' },
   sunrise:     { label: 'Sunrise Club', color: '#f4c877' },
   weekend:     { label: 'Weekend Warrior', color: '#33a08f' },
 };
-export const PATCH_ORDER = ['trailblazer', 'roadrunner', 'streak', 'sunrise', 'weekend'];
+export const PATCH_ORDER = ['explorer', 'trailblazer', 'roadrunner', 'streak', 'sunrise', 'weekend'];

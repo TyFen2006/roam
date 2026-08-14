@@ -26,6 +26,7 @@ export default function Quests({ userId, onReward }) {
 
   const distTarget = unit === 'mi' ? 6 : 10;
   const buildQuests = (s) => [
+    { id: 'spot', icon: '📍', title: "This week's spot", desc: 'Run to the pin on your map', v: s.spot ? 1 : 0, target: 1, binary: true },
     { id: 'streets', icon: '🗺️', title: 'Trailblazer', desc: 'Uncover 15 new streets', v: s.newStreets, target: 15 },
     { id: 'dist', icon: '🏃', title: 'Go the distance', desc: `Cover ${distTarget} ${unit}`, v: unit === 'mi' ? s.distanceKm * 0.621371 : s.distanceKm, target: distTarget, fmt: v => v.toFixed(1) },
     { id: 'freq', icon: '🔥', title: 'Keep it up', desc: 'Run 3 times', v: s.runCount, target: 3 },
@@ -36,9 +37,10 @@ export default function Quests({ userId, onReward }) {
   const load = useCallback(async () => {
     if (!userId || !supabase) return;
     try {
-      const [runsRes, claimsRes] = await Promise.all([
+      const [runsRes, claimsRes, spotRes] = await Promise.all([
         supabase.from('runs').select('distance_km,cells,created_at').eq('user_id', userId).gte('created_at', weekStart().toISOString()),
         supabase.from('quest_claims').select('quest_id').eq('user_id', userId).eq('week', weekDate),
+        supabase.from('quest_spots').select('reached').eq('user_id', userId).eq('week', weekDate).maybeSingle(),
       ]);
       if (runsRes.error) throw runsRes.error;
       const runs = runsRes.data || [];
@@ -48,6 +50,7 @@ export default function Quests({ userId, onReward }) {
         runCount: runs.length,
         sunrise: runs.some(r => new Date(r.created_at).getHours() < 8),
         weekend: runs.some(r => { const d = new Date(r.created_at).getDay(); return d === 0 || d === 6; }),
+        spot: spotRes?.data?.reached || false,
       };
       const claimed = new Set((claimsRes.data || []).map(c => c.quest_id));
 
@@ -98,7 +101,7 @@ export default function Quests({ userId, onReward }) {
           <h2>This week's quests</h2>
           <div className="q-sub">Fresh every week · resets in {daysLeft()} day{daysLeft() === 1 ? '' : 's'}</div>
         </div>
-        <div className={`q-ring ${doneCount === 5 ? 'full' : ''}`}><b>{doneCount}</b><small>/5</small></div>
+        <div className={`q-ring ${quests.length > 0 && doneCount === quests.length ? 'full' : ''}`}><b>{doneCount}</b><small>/{quests.length || 6}</small></div>
       </div>
 
       {err && <div className="q-err">{err}</div>}

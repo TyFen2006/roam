@@ -286,3 +286,24 @@ returns void language plpgsql security definer set search_path = public as $$
 begin
   update public.profiles set points = coalesce(points, 0) + amt where id = auth.uid();
 end; $$;
+
+
+-- ────────────────────────────────────────────────────────────────────────────
+--  8 · QUEST SPOTS  — the weekly "run to a spot" destination
+-- ────────────────────────────────────────────────────────────────────────────
+create table if not exists public.quest_spots (
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  week       date not null,
+  lng        double precision not null,
+  lat        double precision not null,
+  reached    boolean default false,
+  created_at timestamptz default now(),
+  primary key (user_id, week)
+);
+alter table public.quest_spots enable row level security;
+drop policy if exists "quest_spots: read own" on public.quest_spots;
+create policy "quest_spots: read own" on public.quest_spots for select using (auth.uid() = user_id);
+drop policy if exists "quest_spots: insert own" on public.quest_spots;
+create policy "quest_spots: insert own" on public.quest_spots for insert with check (auth.uid() = user_id);
+drop policy if exists "quest_spots: update own" on public.quest_spots;
+create policy "quest_spots: update own" on public.quest_spots for update using (auth.uid() = user_id);
