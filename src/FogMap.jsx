@@ -578,7 +578,6 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
       <div className="map-wrap">
         <div ref={mapEl} className="mapbox" />
         <canvas ref={fogEl} className="fog-ov" />
-        <div className="coord"><span className="pin">◉</span> {status === 'gps' ? 'LIVE · following you' : 'your map'}</div>
         {status === 'idle' && (
           <button className="mood-chip" style={{ '--mc': m.tint }} onClick={onEditMood}>
             <span className="mdot" /> {mood} · {m.blurb} ✎
@@ -623,7 +622,7 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
           <div className="stat"><div className="n">{hud.cells}</div><div className="l">explored</div></div>
           <div className="stat pts"><div className="n">{hud.pts}</div><div className="l">points</div></div>
         </div>
-        {spot && !spot.reached && (
+        {spot && !spot.reached && !liveCode && (
           <div className="spot-controls">
             <button className="find-spot" onClick={flyToSpot}>
               📍 Find {spot.name ? spot.name : (spot.poi && spot.poi !== 'road' && spot.poi !== 'spot' ? `the ${spot.poi}` : 'the spot')}
