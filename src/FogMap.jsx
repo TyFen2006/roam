@@ -49,7 +49,13 @@ const lineFC = (routes) => ({
   features: routes.filter(r => r.length > 1).map(r => ({ type: 'Feature', geometry: { type: 'LineString', coordinates: r } })),
 });
 const ptFC = (c) => ({ type: 'FeatureCollection', features: c ? [{ type: 'Feature', geometry: { type: 'Point', coordinates: c } }] : [] });
-const cellKey = (lng, lat) => Math.round(lng / 0.0007) + ',' + Math.round(lat / 0.0007);
+const CELL = 0.0007;
+const cellKey = (lng, lat) => Math.round(lng / CELL) + ',' + Math.round(lat / CELL);
+function cellPolygon(cell, mine) {
+  const [cx, cy] = cell.split(',').map(Number);
+  const a = (cx - 0.5) * CELL, b = (cx + 0.5) * CELL, c = (cy - 0.5) * CELL, d = (cy + 0.5) * CELL;
+  return { type: 'Feature', properties: { mine }, geometry: { type: 'Polygon', coordinates: [[[a, c], [b, c], [b, d], [a, d], [a, c]]] } };
+}
 function haversineKm(a, b) {
   const R = 6371, toR = Math.PI / 180;
   const dLat = (b[1] - a[1]) * toR, dLng = (b[0] - a[0]) * toR;
@@ -82,10 +88,10 @@ async function nearestRoad(lng, lat) {
   try {
     const r = await fetch(`https://router.project-osrm.org/nearest/v1/driving/${lng},${lat}?number=1`);
     const j = await r.json();
-    const loc = j?.waypoints?.[0]?.location;
-    if (loc) return { lng: loc[0], lat: loc[1] };
+    const wp = j?.waypoints?.[0];
+    if (wp?.location) return { lng: wp.location[0], lat: wp.location[1], name: wp.name || '' };
   } catch { /* fall through */ }
-  return { lng, lat };
+  return { lng, lat, name: '' };
 }
 async function genSpot(nearLng, nearLat) {
   const brg = Math.random() * Math.PI * 2, dKm = 0.8 + Math.random() * 0.5;
@@ -120,6 +126,8 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
   const [joinInput, setJoinInput] = useState('');
   const [roster, setRoster] = useState([]);
   const [spot, setSpot] = useState(null);
+  const [terrOn, setTerrOn] = useState(false);
+  const [ownedCount, setOwnedCount] = useState(0);
 
   const flash = (t) => { setToast(t); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 2200); };
   const refreshHud = () => setHud({ dist: +M.current.dist.toFixed(2), pts: M.current.pts, cells: M.current.cells.size });
@@ -287,6 +295,9 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
           user_id: userId, route: run, mood,
           distance_km: +rDist.toFixed(3), points: rPts, cells: rCells,
         }).then(({ error }) => { if (error) flash('Saved offline (sync later)'); });
+        // claim the streets this run covered (territory game)
+        const cset = new Set(); for (const p of run) cset.add(cellKey(p[0], p[1]));
+        supabase.rpc('claim_cells', { cells: [...cset] }).then(() => { if (M.current.terrOn) refreshTerritory(); });
       }
     }
     s.cur = []; s.runStart = null;
@@ -343,6 +354,23 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
     refreshHud();
     drawFog();
   }
+  // ---- territory (own streets; friends can take them) ----
+  async function refreshTerritory() {
+    const map = M.current.map;
+    if (!map || !supabase || !userId) return;
+    const { data, error } = await supabase.rpc('my_territory');
+    if (error) return;
+    map.getSource('territory')?.setData({ type: 'FeatureCollection', features: (data || []).map(r => cellPolygon(r.cell, r.mine)) });
+    setOwnedCount((data || []).filter(r => r.mine).length);
+  }
+  async function toggleTerritory() {
+    const map = M.current.map; if (!map) return;
+    if (terrOn) { setTerrOn(false); M.current.terrOn = false; map.getSource('territory')?.setData({ type: 'FeatureCollection', features: [] }); return; }
+    if (!supabase || !userId) { flash('Log in to claim territory'); return; }
+    setTerrOn(true); M.current.terrOn = true;
+    await refreshTerritory();
+  }
+
   // ---- weekly "run to a spot" quest ----
   function renderSpot(s) {
     M.current.spot = s; setSpot(s);
@@ -362,12 +390,12 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
   async function ensureSpot(nearLng, nearLat) {
     if (!userId || !supabase || M.current.spot) return;
     const week = weekMonday();
-    const { data } = await supabase.from('quest_spots').select('lng,lat,reached').eq('user_id', userId).eq('week', week).maybeSingle();
+    const { data } = await supabase.from('quest_spots').select('lng,lat,reached,name').eq('user_id', userId).eq('week', week).maybeSingle();
     if (data) { renderSpot({ ...data, week }); return; }
     const g = await genSpot(nearLng, nearLat);
-    const ins = await supabase.from('quest_spots').insert({ user_id: userId, week, lng: g.lng, lat: g.lat }).select('lng,lat,reached').maybeSingle();
+    const ins = await supabase.from('quest_spots').insert({ user_id: userId, week, lng: g.lng, lat: g.lat, name: g.name || null }).select('lng,lat,reached,name').maybeSingle();
     if (ins.data) { renderSpot({ ...ins.data, week }); return; }
-    const { data: d2 } = await supabase.from('quest_spots').select('lng,lat,reached').eq('user_id', userId).eq('week', week).maybeSingle();
+    const { data: d2 } = await supabase.from('quest_spots').select('lng,lat,reached,name').eq('user_id', userId).eq('week', week).maybeSingle();
     if (d2) renderSpot({ ...d2, week });
   }
   async function markSpotReached() {
@@ -462,6 +490,10 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
     });
     M.current.map = map;
     map.on('load', () => {
+      // territory fills (under the trail): gold = yours, red = someone took it
+      map.addSource('territory', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      map.addLayer({ id: 'terr-fill', type: 'fill', source: 'territory', paint: { 'fill-color': ['case', ['get', 'mine'], '#e8a33d', '#e8654f'], 'fill-opacity': 0.22 } });
+      map.addLayer({ id: 'terr-line', type: 'line', source: 'territory', paint: { 'line-color': ['case', ['get', 'mine'], '#f4c877', '#ff8a72'], 'line-width': 0.8, 'line-opacity': 0.45 } });
       map.addSource('trail', { type: 'geojson', data: lineFC([]) });
       map.addLayer({ id: 'trail-glow', type: 'line', source: 'trail', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#e8a33d', 'line-width': 11, 'line-blur': 9, 'line-opacity': 0.55 } });
       map.addLayer({ id: 'trail-core', type: 'line', source: 'trail', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#f8d489', 'line-width': 4 } });
@@ -521,6 +553,9 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
             </div>
           </div>
         )}
+        <button className={`terr-btn ${terrOn ? 'on' : ''}`} onClick={toggleTerritory}>
+          🏆 {terrOn ? `${ownedCount} street${ownedCount === 1 ? '' : 's'}` : 'Territory'}
+        </button>
         <div className="hud">
           <button className="stat unit" onClick={toggleUnit}>
             <div className="n">{(unit === 'mi' ? hud.dist * 0.621371 : hud.dist).toFixed(2)}</div>

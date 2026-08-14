@@ -307,3 +307,49 @@ drop policy if exists "quest_spots: insert own" on public.quest_spots;
 create policy "quest_spots: insert own" on public.quest_spots for insert with check (auth.uid() = user_id);
 drop policy if exists "quest_spots: update own" on public.quest_spots;
 create policy "quest_spots: update own" on public.quest_spots for update using (auth.uid() = user_id);
+
+-- name of the road the spot sits on (from OSRM), so we can say "Run to Mill Road"
+alter table public.quest_spots add column if not exists name text;
+
+
+-- ────────────────────────────────────────────────────────────────────────────
+--  9 · TERRITORY  — own streets; friends can take them back (the territory game)
+-- ────────────────────────────────────────────────────────────────────────────
+-- how many times each user has run through each grid cell
+create table if not exists public.territory (
+  cell       text not null,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  visits     int default 1,
+  updated_at timestamptz default now(),
+  primary key (cell, user_id)
+);
+alter table public.territory enable row level security;
+drop policy if exists "territory: read all" on public.territory;
+create policy "territory: read all" on public.territory for select using (true);
+drop policy if exists "territory: insert own" on public.territory;
+create policy "territory: insert own" on public.territory for insert with check (auth.uid() = user_id);
+drop policy if exists "territory: update own" on public.territory;
+create policy "territory: update own" on public.territory for update using (auth.uid() = user_id);
+
+-- the current owner of each cell = whoever has run it most
+create or replace view public.cell_owners as
+  select distinct on (cell) cell, user_id, visits
+  from public.territory
+  order by cell, visits desc, updated_at desc;
+
+-- record a run's cells for the caller (increments their visit counts)
+create or replace function public.claim_cells(cells text[])
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.territory (cell, user_id, visits)
+  select c, auth.uid(), 1 from unnest(cells) as c
+  on conflict (cell, user_id) do update set visits = public.territory.visits + 1, updated_at = now();
+end; $$;
+
+-- cells the caller has visited, flagged mine=true if they currently own it
+create or replace function public.my_territory()
+returns table(cell text, mine boolean) language sql security definer set search_path = public as $$
+  select t.cell, (co.user_id = auth.uid()) as mine
+  from (select distinct cell from public.territory where user_id = auth.uid()) t
+  join public.cell_owners co on co.cell = t.cell;
+$$;
