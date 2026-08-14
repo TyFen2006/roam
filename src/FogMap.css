@@ -32,8 +32,9 @@
 /* ---- live "run together" ---- */
 .runner-marker{ width:30px; height:30px; border-radius:50%; background:var(--rc,#888); color:#0a0e12; font-weight:800; font-size:.7rem; display:flex; align-items:center; justify-content:center; border:2px solid #0a0e12; box-shadow:0 0 0 2px var(--rc,#888), 0 2px 6px rgba(0,0,0,.5); }
 
-.spot-marker{ font-size:30px; line-height:1; filter:drop-shadow(0 3px 4px rgba(0,0,0,.6)); cursor:default; animation:spotbob 1.8s ease-in-out infinite; }
-.spot-marker.reached{ font-size:22px; width:30px; height:30px; border-radius:50%; background:var(--teal); color:#04120f; font-weight:900; display:flex; align-items:center; justify-content:center; border:2px solid #04120f; animation:none; }
+.spot-marker{ cursor:default; }
+.spot-marker .spot-pin{ display:block; font-size:30px; line-height:1; filter:drop-shadow(0 3px 4px rgba(0,0,0,.6)); animation:spotbob 1.8s ease-in-out infinite; }
+.spot-marker.reached .spot-pin{ font-size:20px; width:30px; height:30px; border-radius:50%; background:var(--teal); color:#04120f; font-weight:900; display:flex; align-items:center; justify-content:center; border:2px solid #04120f; filter:none; animation:none; }
 @keyframes spotbob{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-5px);} }
 
 .terr-btn{ position:absolute; top:44px; right:12px; z-index:3; font-family:var(--mono); font-size:.62rem; color:var(--paper); background:rgba(8,12,18,.74); border:1px solid var(--line); border-radius:999px; padding:6px 11px; cursor:pointer; }

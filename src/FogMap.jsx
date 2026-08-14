@@ -374,18 +374,20 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
   // ---- weekly "run to a spot" quest ----
   function renderSpot(s) {
     M.current.spot = s; setSpot(s);
-    const map = M.current.map; if (!map || !s) return;
+    const map = M.current.map;
+    if (!map || !s || !isFinite(s.lng) || !isFinite(s.lat)) return;
     let mk = M.current.spotMarker;
     if (!mk) {
       const el = document.createElement('div');
       el.className = 'spot-marker';
+      el.innerHTML = '<span class="spot-pin"></span>'; // animate the child, not the marker
       mk = new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([s.lng, s.lat]).addTo(map);
       M.current.spotMarker = mk;
     }
     mk.setLngLat([s.lng, s.lat]);
     const el = mk.getElement();
     el.className = 'spot-marker' + (s.reached ? ' reached' : '');
-    el.textContent = s.reached ? '✓' : '📍';
+    el.querySelector('.spot-pin').textContent = s.reached ? '✓' : '📍';
   }
   async function ensureSpot(nearLng, nearLat) {
     if (!userId || !supabase || M.current.spot) return;
