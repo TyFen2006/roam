@@ -49,7 +49,7 @@ const lineFC = (routes) => ({
   features: routes.filter(r => r.length > 1).map(r => ({ type: 'Feature', geometry: { type: 'LineString', coordinates: r } })),
 });
 const ptFC = (c) => ({ type: 'FeatureCollection', features: c ? [{ type: 'Feature', geometry: { type: 'Point', coordinates: c } }] : [] });
-const CELL = 0.0007;
+const CELL = 0.0015; // ~1 city block per cell, so "streets" counts realistically
 const cellKey = (lng, lat) => Math.round(lng / CELL) + ',' + Math.round(lat / CELL);
 function cellPolygon(cell, mine) {
   const [cx, cy] = cell.split(',').map(Number);
@@ -98,6 +98,39 @@ async function genSpot(nearLng, nearLat) {
   const lat = nearLat + (dKm / 111) * Math.cos(brg);
   const lng = nearLng + (dKm / (111 * Math.cos(nearLat * Math.PI / 180))) * Math.sin(brg);
   return nearestRoad(lng, lat);
+}
+// Find a cool nearby place (pond, park, statue, viewpoint…) via OpenStreetMap.
+async function findPOI(lng, lat) {
+  const q = `[out:json][timeout:8];(node(around:1500,${lat},${lng})[leisure=park];way(around:1500,${lat},${lng})[leisure=park];node(around:1500,${lat},${lng})[natural=water];way(around:1500,${lat},${lng})[natural=water];node(around:1500,${lat},${lng})[historic];way(around:1500,${lat},${lng})[historic];node(around:1500,${lat},${lng})[tourism~"viewpoint|artwork"];);out center 40;`;
+  const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 9000);
+  try {
+    const r = await fetch('https://overpass.kumi.systems/api/interpreter', { method: 'POST', body: 'data=' + encodeURIComponent(q), signal: ctrl.signal });
+    const txt = await r.text();
+    if (!txt.trim().startsWith('{')) return null;
+    const j = JSON.parse(txt);
+    const els = (j.elements || []).map(e => {
+      const p = e.center || (e.lat != null ? { lat: e.lat, lon: e.lon } : null);
+      if (!p) return null;
+      const tg = e.tags || {};
+      let poi = 'Spot';
+      if (tg.leisure === 'park') poi = 'Park';
+      else if (tg.natural === 'water') poi = tg.water === 'pond' ? 'Pond' : (tg.water === 'lake' ? 'Lake' : 'Water');
+      else if (tg.historic) poi = /statue/i.test(tg.historic) ? 'Statue' : (/memorial/i.test(tg.historic) ? 'Memorial' : 'Monument');
+      else if (tg.tourism === 'viewpoint') poi = 'Viewpoint';
+      else if (tg.tourism === 'artwork') poi = 'Public Art';
+      return { lng: p.lon, lat: p.lat, name: tg.name || '', poi };
+    }).filter(e => e && isFinite(e.lng) && isFinite(e.lat));
+    if (!els.length) return null;
+    const named = els.filter(e => e.name);
+    const pool = named.length ? named : els;
+    return pool[Math.floor(Math.random() * pool.length)];
+  } catch { return null; } finally { clearTimeout(t); }
+}
+async function makeSpot(nearLng, nearLat) {
+  const poi = await findPOI(nearLng, nearLat);
+  if (poi) return poi;
+  const road = await genSpot(nearLng, nearLat);
+  return { lng: road.lng, lat: road.lat, name: road.name, poi: 'road' };
 }
 function softStops(c, x, y, r, stops) {
   const g = c.createRadialGradient(x, y, 0, x, y, r);
@@ -193,7 +226,7 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
       const now = Date.now();
       if (!s.liveTrackAt || now - s.liveTrackAt > 700) { s.liveTrackAt = now; trackPresence(); }
     }
-    if (s.spot && !s.spot.reached && haversineKm([lng, lat], [s.spot.lng, s.spot.lat]) < 0.09) markSpotReached();
+    if (s.spot && !s.spot.reached && haversineKm([lng, lat], [s.spot.lng, s.spot.lat]) < 0.12) markSpotReached();
     refreshHud();
   }
 
@@ -392,13 +425,18 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
   async function ensureSpot(nearLng, nearLat) {
     if (!userId || !supabase || M.current.spot) return;
     const week = weekMonday();
-    const { data } = await supabase.from('quest_spots').select('lng,lat,reached,name').eq('user_id', userId).eq('week', week).maybeSingle();
-    if (data) { renderSpot({ ...data, week }); return; }
-    const g = await genSpot(nearLng, nearLat);
-    const ins = await supabase.from('quest_spots').insert({ user_id: userId, week, lng: g.lng, lat: g.lat, name: g.name || null }).select('lng,lat,reached,name').maybeSingle();
-    if (ins.data) { renderSpot({ ...ins.data, week }); return; }
-    const { data: d2 } = await supabase.from('quest_spots').select('lng,lat,reached,name').eq('user_id', userId).eq('week', week).maybeSingle();
-    if (d2) renderSpot({ ...d2, week });
+    const { data } = await supabase.from('quest_spots').select('lng,lat,reached,name,poi').eq('user_id', userId).eq('week', week).maybeSingle();
+    if (data && data.poi) { renderSpot({ ...data, week }); return; }   // already a real place
+    // none yet (or an old road-only spot) → pick a cool nearby place
+    const g = await makeSpot(nearLng, nearLat);
+    const up = await supabase.from('quest_spots')
+      .upsert({ user_id: userId, week, lng: g.lng, lat: g.lat, name: g.name || null, poi: g.poi || 'spot', reached: data?.reached || false }, { onConflict: 'user_id,week' })
+      .select('lng,lat,reached,name,poi').maybeSingle();
+    if (up.data) renderSpot({ ...up.data, week });
+  }
+  function flyToSpot() {
+    const s = M.current.spot;
+    if (s && M.current.map) { M.current.following = false; setShowRecenter(true); M.current.map.flyTo({ center: [s.lng, s.lat], zoom: 15.5, duration: 1400, essential: true }); }
   }
   async function markSpotReached() {
     const s = M.current.spot; if (!s || s.reached) return;
@@ -566,6 +604,11 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
           <div className="stat"><div className="n">{hud.cells}</div><div className="l">explored</div></div>
           <div className="stat pts"><div className="n">{hud.pts}</div><div className="l">points</div></div>
         </div>
+        {spot && !spot.reached && (
+          <button className="find-spot" onClick={flyToSpot}>
+            📍 Find {spot.name ? spot.name : (spot.poi && spot.poi !== 'road' && spot.poi !== 'spot' ? `the ${spot.poi}` : 'the spot')}
+          </button>
+        )}
         {toast && <div className="toast">{toast}</div>}
       </div>
 

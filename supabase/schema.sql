@@ -308,8 +308,9 @@ create policy "quest_spots: insert own" on public.quest_spots for insert with ch
 drop policy if exists "quest_spots: update own" on public.quest_spots;
 create policy "quest_spots: update own" on public.quest_spots for update using (auth.uid() = user_id);
 
--- name of the road the spot sits on (from OSRM), so we can say "Run to Mill Road"
+-- name of the place/road the spot sits on, and its category (Pond/Park/Statue/…)
 alter table public.quest_spots add column if not exists name text;
+alter table public.quest_spots add column if not exists poi text;
 
 
 -- ────────────────────────────────────────────────────────────────────────────

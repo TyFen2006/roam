@@ -79,7 +79,7 @@ export async function importFromStrava(userId) {
     const route = decodePolyline(a.map.summary_polyline);
     if (route.length < 2) continue;
     const cells = new Set();
-    for (const [lng, lat] of route) cells.add(Math.round(lng / 0.0007) + ',' + Math.round(lat / 0.0007));
+    for (const [lng, lat] of route) cells.add(Math.round(lng / 0.0015) + ',' + Math.round(lat / 0.0015));
     rows.push({
       user_id: userId,
       route,

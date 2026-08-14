@@ -26,8 +26,8 @@ export default function Quests({ userId, onReward }) {
 
   const distTarget = unit === 'mi' ? 6 : 10;
   const buildQuests = (s) => [
-    { id: 'spot', icon: '📍', title: "This week's spot", desc: s.spotName ? `Run to ${s.spotName}` : 'Run to the pin on your map', v: s.spot ? 1 : 0, target: 1, binary: true },
-    { id: 'streets', icon: '🗺️', title: 'Trailblazer', desc: 'Uncover 15 new streets', v: s.newStreets, target: 15 },
+    { id: 'spot', icon: '📍', title: "This week's spot", desc: s.spotName ? `Run to ${s.spotName}` : (s.spotPoi && s.spotPoi !== 'road' && s.spotPoi !== 'spot' ? `Run to a ${s.spotPoi}` : 'Run to the pin on your map'), v: s.spot ? 1 : 0, target: 1, binary: true },
+    { id: 'streets', icon: '🗺️', title: 'Trailblazer', desc: 'Uncover 10 new streets', v: s.newStreets, target: 10 },
     { id: 'dist', icon: '🏃', title: 'Go the distance', desc: `Cover ${distTarget} ${unit}`, v: unit === 'mi' ? s.distanceKm * 0.621371 : s.distanceKm, target: distTarget, fmt: v => v.toFixed(1) },
     { id: 'freq', icon: '🔥', title: 'Keep it up', desc: 'Run 3 times', v: s.runCount, target: 3 },
     { id: 'sunrise', icon: '🌅', title: 'Sunrise Club', desc: 'Do a run before 8am', v: s.sunrise ? 1 : 0, target: 1, binary: true },
@@ -40,7 +40,7 @@ export default function Quests({ userId, onReward }) {
       const [runsRes, claimsRes, spotRes] = await Promise.all([
         supabase.from('runs').select('distance_km,cells,created_at').eq('user_id', userId).gte('created_at', weekStart().toISOString()),
         supabase.from('quest_claims').select('quest_id').eq('user_id', userId).eq('week', weekDate),
-        supabase.from('quest_spots').select('reached,name').eq('user_id', userId).eq('week', weekDate).maybeSingle(),
+        supabase.from('quest_spots').select('reached,name,poi').eq('user_id', userId).eq('week', weekDate).maybeSingle(),
       ]);
       if (runsRes.error) throw runsRes.error;
       const runs = runsRes.data || [];
@@ -52,6 +52,7 @@ export default function Quests({ userId, onReward }) {
         weekend: runs.some(r => { const d = new Date(r.created_at).getDay(); return d === 0 || d === 6; }),
         spot: spotRes?.data?.reached || false,
         spotName: spotRes?.data?.name || '',
+        spotPoi: spotRes?.data?.poi || '',
       };
       const claimed = new Set((claimsRes.data || []).map(c => c.quest_id));
 

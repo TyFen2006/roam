@@ -32,6 +32,10 @@
 /* ---- live "run together" ---- */
 .runner-marker{ width:30px; height:30px; border-radius:50%; background:var(--rc,#888); color:#0a0e12; font-weight:800; font-size:.7rem; display:flex; align-items:center; justify-content:center; border:2px solid #0a0e12; box-shadow:0 0 0 2px var(--rc,#888), 0 2px 6px rgba(0,0,0,.5); }
 
+.find-spot{ position:absolute; bottom:80px; left:50%; transform:translateX(-50%); z-index:3; white-space:nowrap;
+  font-family:var(--mono); font-size:.66rem; color:#04120f; background:var(--teal); border:0; border-radius:999px;
+  padding:8px 14px; font-weight:700; cursor:pointer; box-shadow:0 4px 12px -4px rgba(0,0,0,.6); }
+
 .spot-marker{ cursor:default; }
 .spot-marker .spot-pin{ display:block; font-size:30px; line-height:1; filter:drop-shadow(0 3px 4px rgba(0,0,0,.6)); animation:spotbob 1.8s ease-in-out infinite; }
 .spot-marker.reached .spot-pin{ font-size:20px; width:30px; height:30px; border-radius:50%; background:var(--teal); color:#04120f; font-weight:900; display:flex; align-items:center; justify-content:center; border:2px solid #04120f; filter:none; animation:none; }
