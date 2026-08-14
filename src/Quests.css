@@ -1,0 +1,33 @@
+.quests{ padding:16px 16px 26px; display:flex; flex-direction:column; gap:8px; }
+
+.q-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin:6px 2px 12px; }
+.q-head h2{ margin:0; font-size:1.35rem; letter-spacing:-.01em; }
+.q-sub{ font-family:var(--mono); font-size:.66rem; color:var(--mut); letter-spacing:.03em; margin-top:4px; }
+.q-ring{
+  flex:none; width:56px; height:56px; border-radius:50%; display:flex; align-items:baseline; justify-content:center;
+  border:2px solid var(--line); color:var(--paper);
+}
+.q-ring b{ font-size:1.3rem; font-weight:800; }
+.q-ring small{ font-family:var(--mono); font-size:.66rem; color:var(--mut); }
+.q-ring.full{ border-color:var(--marigold); box-shadow:0 0 0 3px rgba(232,163,61,.18); color:var(--marigold-2); }
+
+.q-list{ display:flex; flex-direction:column; gap:9px; }
+.q-card{
+  display:flex; align-items:center; gap:13px; background:var(--panel); border:1px solid var(--line);
+  border-radius:14px; padding:13px;
+}
+.q-card.done{ border-color:var(--marigold); background:linear-gradient(180deg, rgba(232,163,61,.08), var(--panel)); }
+.q-ic{ width:42px; height:42px; border-radius:12px; background:var(--ink-2); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:1.5rem; flex:none; }
+.q-card.done .q-ic{ border-color:var(--marigold); }
+.q-mid{ flex:1; min-width:0; }
+.q-title{ font-weight:800; font-size:1rem; display:flex; align-items:center; gap:8px; }
+.q-check{ color:var(--marigold); font-weight:900; }
+.q-desc{ color:var(--mut); font-size:.84rem; margin-top:2px; }
+.q-bar{ height:6px; border-radius:999px; background:rgba(255,255,255,.07); overflow:hidden; margin-top:9px; }
+.q-bar span{ display:block; height:100%; border-radius:999px; background:var(--marigold); transition:width .4s ease; }
+.q-prog{ font-family:var(--mono); font-size:.74rem; font-weight:700; color:var(--paper); flex:none; text-align:right; min-width:44px; font-variant-numeric:tabular-nums; }
+.q-card.done .q-prog{ color:var(--marigold-2); }
+
+.q-empty{ color:var(--mut); font-size:.9rem; padding:10px 2px; }
+.q-err{ color:#ff8a72; font-size:.85rem; background:rgba(255,106,82,.1); border:1px solid #402320; border-radius:10px; padding:9px 12px; }
+.q-note{ font-family:var(--mono); font-size:.68rem; color:var(--dim); line-height:1.6; text-align:center; margin-top:14px; }

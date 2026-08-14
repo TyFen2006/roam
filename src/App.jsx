@@ -4,6 +4,7 @@ import Social from './Social.jsx';
 import RunMoods from './RunMoods.jsx';
 import Auth from './Auth.jsx';
 import Profile from './Profile.jsx';
+import Quests from './Quests.jsx';
 import { supabase, hasSupabase } from './lib/supabase.js';
 import { initials } from './lib/util.js';
 import { stravaExchange } from './lib/strava.js';
@@ -12,7 +13,7 @@ const I = {
   map:   <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z M9 4v14 M15 6v14" />,
   social:<><circle cx="8.5" cy="8" r="3" /><path d="M3 20c0-3 2.4-5 5.5-5s5.5 2 5.5 5" /><circle cx="17" cy="9.5" r="2.4" /><path d="M15.5 15.2c2.4.1 4.5 1.9 4.5 4.8" /></>,
   start: <path d="M8 5v14l11-7z" fill="currentColor" stroke="none" />,
-  board: <path d="M6 20V10 M12 20V4 M18 20v-7" />,
+  quests:<><path d="M5 21V4" /><path d="M5 4c3-1.6 6 1.6 9 0v7c-3 1.6-6-1.6-9 0" /></>,
   you:   <><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 4-6 8-6s8 2 8 6" /></>,
 };
 
@@ -35,7 +36,7 @@ const TABS = [
   { id: 'map',    label: 'Map' },
   { id: 'social', label: 'Social' },
   { id: 'start',  label: '' },
-  { id: 'board',  label: 'Board' },
+  { id: 'quests', label: 'Quests' },
   { id: 'you',    label: 'You' },
 ];
 
@@ -113,10 +114,7 @@ export default function App() {
         {tab === 'start' && (
           <RunMoods mood={mood} onPick={(m) => { setMood(m); setTab('map'); }} />
         )}
-        {tab === 'board' && (
-          <Placeholder icon={I.board} title="Scoreboards"
-            text="Local, friends, and community boards — competing on exploration and connection, not pace. Group boards already live inside Social." />
-        )}
+        {tab === 'quests' && <Quests userId={session?.user?.id} />}
         {tab === 'you' && <Profile session={session} profile={profile} onUpdated={loadProfile} />}
       </div>
 
