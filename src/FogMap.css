@@ -32,7 +32,7 @@
 /* ---- live "run together" ---- */
 .runner-marker{ width:30px; height:30px; border-radius:50%; background:var(--rc,#888); color:#0a0e12; font-weight:800; font-size:.7rem; display:flex; align-items:center; justify-content:center; border:2px solid #0a0e12; box-shadow:0 0 0 2px var(--rc,#888), 0 2px 6px rgba(0,0,0,.5); }
 
-.find-spot{ position:absolute; bottom:80px; left:50%; transform:translateX(-50%); z-index:3; white-space:nowrap;
+.find-spot{ position:absolute; bottom:58px; left:12px; z-index:4; white-space:nowrap;
   font-family:var(--mono); font-size:.66rem; color:#04120f; background:var(--teal); border:0; border-radius:999px;
   padding:8px 14px; font-weight:700; cursor:pointer; box-shadow:0 4px 12px -4px rgba(0,0,0,.6); }
 
@@ -78,7 +78,7 @@
   background:rgba(8,12,18,.85); border:1px solid var(--marigold); border-radius:999px; padding:8px 13px;
 }
 
-.hud{ position:absolute; left:12px; bottom:34px; z-index:3; display:flex; gap:7px; }
+.hud{ position:absolute; left:12px; bottom:12px; z-index:3; display:flex; gap:7px; }
 .hud .stat{ background:rgba(8,12,18,.85); border:1px solid var(--line); border-radius:11px; padding:8px 12px; min-width:56px; }
 .hud .stat .n{ font-weight:800; font-size:1.05rem; font-variant-numeric:tabular-nums; }
 .hud .stat.pts .n{ color:var(--marigold-2); }
