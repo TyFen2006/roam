@@ -99,15 +99,22 @@ async function genSpot(nearLng, nearLat) {
   const lng = nearLng + (dKm / (111 * Math.cos(nearLat * Math.PI / 180))) * Math.sin(brg);
   return nearestRoad(lng, lat);
 }
+async function overpass(q, url, ms) {
+  const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const r = await fetch(url, { method: 'POST', body: 'data=' + encodeURIComponent(q), signal: ctrl.signal });
+    const txt = await r.text();
+    return txt.trim().startsWith('{') ? JSON.parse(txt) : null;
+  } catch { return null; } finally { clearTimeout(t); }
+}
 // Find a cool nearby place (pond, park, statue, viewpoint…) via OpenStreetMap.
 async function findPOI(lng, lat) {
-  const q = `[out:json][timeout:8];(node(around:1500,${lat},${lng})[leisure=park];way(around:1500,${lat},${lng})[leisure=park];node(around:1500,${lat},${lng})[natural=water];way(around:1500,${lat},${lng})[natural=water];node(around:1500,${lat},${lng})[historic];way(around:1500,${lat},${lng})[historic];node(around:1500,${lat},${lng})[tourism~"viewpoint|artwork"];);out center 40;`;
-  const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 9000);
-  try {
-    const r = await fetch('https://overpass.kumi.systems/api/interpreter', { method: 'POST', body: 'data=' + encodeURIComponent(q), signal: ctrl.signal });
-    const txt = await r.text();
-    if (!txt.trim().startsWith('{')) return null;
-    const j = JSON.parse(txt);
+  const q = `[out:json][timeout:6];(nwr(around:1600,${lat},${lng})[leisure=park];nwr(around:1600,${lat},${lng})[natural=water];nwr(around:1600,${lat},${lng})[historic];nwr(around:1600,${lat},${lng})[tourism~"viewpoint|artwork"];);out center 50;`;
+  const mirrors = ['https://overpass.kumi.systems/api/interpreter', 'https://overpass-api.de/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
+  let j = null;
+  for (const m of mirrors) { j = await overpass(q, m, 7000); if (j && j.elements) break; }
+  if (!j || !j.elements) return null;
+  {
     const els = (j.elements || []).map(e => {
       const p = e.center || (e.lat != null ? { lat: e.lat, lon: e.lon } : null);
       if (!p) return null;
@@ -124,7 +131,7 @@ async function findPOI(lng, lat) {
     const named = els.filter(e => e.name);
     const pool = named.length ? named : els;
     return pool[Math.floor(Math.random() * pool.length)];
-  } catch { return null; } finally { clearTimeout(t); }
+  }
 }
 async function makeSpot(nearLng, nearLat) {
   const poi = await findPOI(nearLng, nearLat);
@@ -409,18 +416,18 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
     M.current.spot = s; setSpot(s);
     const map = M.current.map;
     if (!map || !s || !isFinite(s.lng) || !isFinite(s.lat)) return;
+    const color = s.reached ? '#33a08f' : '#e8a33d';
+    const check = s.reached ? `<path d="M11.4 14.2l2.4 2.4 4.3-4.6" stroke="${color}" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>` : '';
+    const svg = `<svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg"><path d="M15 39S27 24 27 14A12 12 0 1 0 3 14C3 24 15 39 15 39Z" fill="${color}" stroke="#0a0e12" stroke-width="1.5"/><circle cx="15" cy="14" r="5.5" fill="#0a0e12"/>${check}</svg>`;
     let mk = M.current.spotMarker;
     if (!mk) {
       const el = document.createElement('div');
       el.className = 'spot-marker';
-      el.innerHTML = '<span class="spot-pin"></span>'; // animate the child, not the marker
       mk = new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([s.lng, s.lat]).addTo(map);
       M.current.spotMarker = mk;
     }
+    mk.getElement().innerHTML = svg;
     mk.setLngLat([s.lng, s.lat]);
-    const el = mk.getElement();
-    el.className = 'spot-marker' + (s.reached ? ' reached' : '');
-    el.querySelector('.spot-pin').textContent = s.reached ? '✓' : '📍';
   }
   async function ensureSpot(nearLng, nearLat) {
     if (!userId || !supabase || M.current.spot) return;
@@ -437,6 +444,18 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
   function flyToSpot() {
     const s = M.current.spot;
     if (s && M.current.map) { M.current.following = false; setShowRecenter(true); M.current.map.flyTo({ center: [s.lng, s.lat], zoom: 15.5, duration: 1400, essential: true }); }
+  }
+  async function rerollSpot() {
+    if (!userId || !supabase || !M.current.map) return;
+    flash('Finding a new spot…');
+    const c = M.current.map.getCenter();
+    const near = M.current.lastPos || [c.lng, c.lat];
+    const week = weekMonday();
+    const g = await makeSpot(near[0], near[1]);
+    const up = await supabase.from('quest_spots')
+      .upsert({ user_id: userId, week, lng: g.lng, lat: g.lat, name: g.name || null, poi: g.poi || 'spot', reached: false }, { onConflict: 'user_id,week' })
+      .select('lng,lat,reached,name,poi').maybeSingle();
+    if (up.data) { renderSpot({ ...up.data, week }); flyToSpot(); }
   }
   async function markSpotReached() {
     const s = M.current.spot; if (!s || s.reached) return;
@@ -605,9 +624,12 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
           <div className="stat pts"><div className="n">{hud.pts}</div><div className="l">points</div></div>
         </div>
         {spot && !spot.reached && (
-          <button className="find-spot" onClick={flyToSpot}>
-            📍 Find {spot.name ? spot.name : (spot.poi && spot.poi !== 'road' && spot.poi !== 'spot' ? `the ${spot.poi}` : 'the spot')}
-          </button>
+          <div className="spot-controls">
+            <button className="find-spot" onClick={flyToSpot}>
+              📍 Find {spot.name ? spot.name : (spot.poi && spot.poi !== 'road' && spot.poi !== 'spot' ? `the ${spot.poi}` : 'the spot')}
+            </button>
+            <button className="reroll-spot" onClick={rerollSpot} title="Pick a new spot">🎲</button>
+          </div>
         )}
         {toast && <div className="toast">{toast}</div>}
       </div>
