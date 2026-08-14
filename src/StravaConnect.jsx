@@ -13,9 +13,8 @@ export default function StravaConnect({ userId }) {
       .then(({ data }) => setConnected(!!data));
   }, [userId]);
 
-  if (!stravaConfigured) {
-    return <div className="strava-card off">🔗 Strava import — add your Strava keys to turn this on.</div>;
-  }
+  // Strava import is paused until the keys are configured — hide it entirely for now.
+  if (!stravaConfigured) return null;
 
   async function doImport() {
     setBusy(true); setMsg('');
