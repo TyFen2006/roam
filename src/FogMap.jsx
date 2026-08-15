@@ -151,7 +151,7 @@ function colorFor(id) {
   return `hsl(${h} 72% 58%)`;
 }
 
-export default function FogMap({ mood = 'Explore', onEditMood, userId, myName }) {
+export default function FogMap({ mood = 'Explore', onEditMood, onViewCommunity, userId, myName }) {
   const mapEl = useRef(null), fogEl = useRef(null);
   const M = useRef({ map: null, fog: null, watch: null, wake: null, demo: null, routes: [], cur: [], cells: new Set(), dist: 0, pts: 0, following: true });
   const [status, setStatus] = useState('idle');       // idle | gps | demo
@@ -168,6 +168,8 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
   const [spot, setSpot] = useState(null);
   const [terrOn, setTerrOn] = useState(false);
   const [ownedCount, setOwnedCount] = useState(0);
+  const [resetArmed, setResetArmed] = useState(false);
+  const resetTimer = useRef(0);
 
   const flash = (t) => { setToast(t); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 2200); };
   const refreshHud = () => setHud({ dist: +M.current.dist.toFixed(2), pts: M.current.pts, cells: M.current.cells.size });
@@ -353,6 +355,14 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
     s.map?.getSource('trail')?.setData(lineFC([]));
     s.map?.getSource('me')?.setData(ptFC(null));
     refreshHud(); drawFog(); setStatus('idle');
+  }
+  // Two-tap guard so a single stray tap can't wipe someone's whole map.
+  function handleReset() {
+    if (resetArmed) { clearTimeout(resetTimer.current); setResetArmed(false); resetTerritory(); flash('Map reset'); return; }
+    setResetArmed(true);
+    flash('Reset your whole map? Tap again to confirm');
+    clearTimeout(resetTimer.current);
+    resetTimer.current = setTimeout(() => setResetArmed(false), 3500);
   }
   function recenter() {
     const s = M.current; s.following = true; setShowRecenter(false);
@@ -567,7 +577,7 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
     map.on('dragstart', () => { M.current.following = false; setShowRecenter(true); });
     const onResize = () => { map.resize(); };
     window.addEventListener('resize', onResize);
-    return () => { stopRun(); leaveLive(); if (M.current.spotMarker) { M.current.spotMarker.remove(); M.current.spotMarker = null; } window.removeEventListener('resize', onResize); clearTimeout(toastTimer.current); map.remove(); M.current.map = null; };
+    return () => { stopRun(); leaveLive(); if (M.current.spotMarker) { M.current.spotMarker.remove(); M.current.spotMarker = null; } window.removeEventListener('resize', onResize); clearTimeout(toastTimer.current); clearTimeout(resetTimer.current); map.remove(); M.current.map = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -649,7 +659,13 @@ export default function FogMap({ mood = 'Explore', onEditMood, userId, myName })
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
           Demo
         </button>
-        <button className="ghost" onClick={resetTerritory} disabled={status !== 'idle'}>Reset</button>
+      </div>
+
+      <div className="mapnav">
+        <button className="community-btn" onClick={onViewCommunity}>🌍 Community map</button>
+        <button className={`reset-btn ${resetArmed ? 'armed' : ''}`} onClick={handleReset} disabled={status !== 'idle'}>
+          {resetArmed ? '⚠ Tap to confirm' : 'Reset'}
+        </button>
       </div>
 
       <p className="hint">

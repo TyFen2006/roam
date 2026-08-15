@@ -158,15 +158,9 @@ export default function App() {
 
       <div className="view">
         {tab === 'map' && (
-          <>
-            <div className="map-switch">
-              <button className={mapView === 'mine' ? 'on' : ''} onClick={() => setMapView('mine')}>My map</button>
-              <button className={mapView === 'world' ? 'on' : ''} onClick={() => setMapView('world')}>Community</button>
-            </div>
-            {mapView === 'mine'
-              ? <FogMap mood={mood} onEditMood={() => setTab('start')} userId={session?.user?.id} myName={profile?.display_name || session?.user?.email} />
-              : <CommunityMap />}
-          </>
+          mapView === 'mine'
+            ? <FogMap mood={mood} onEditMood={() => setTab('start')} onViewCommunity={() => setMapView('world')} userId={session?.user?.id} myName={profile?.display_name || session?.user?.email} />
+            : <CommunityMap onViewMine={() => setMapView('mine')} />
         )}
         {tab === 'social' && <Social userId={session?.user?.id} />}
         {tab === 'start' && (

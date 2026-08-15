@@ -1,7 +1,7 @@
 .fogmap-live{ display:flex; flex-direction:column; gap:12px; padding:12px 14px 20px; }
 
 .map-wrap{
-  position:relative; width:100%; height:calc(100dvh - 272px - env(safe-area-inset-top)); min-height:280px;
+  position:relative; width:100%; height:calc(100dvh - 328px - env(safe-area-inset-top)); min-height:240px;
   border:1px solid var(--line); border-radius:18px; overflow:hidden; background:#0a0e12;
   box-shadow:0 30px 60px -34px rgba(0,0,0,.85);
 }
@@ -105,6 +105,21 @@
 .controls button.primary{ background:var(--marigold); border-color:var(--marigold); color:#181206; }
 .controls button.stop{ background:#ff6a52; border-color:#ff6a52; color:#180a08; }
 .controls button.ghost{ flex:0 0 auto; color:var(--mut); }
+
+/* secondary nav row: jump to the community map + a guarded reset */
+.mapnav{ display:flex; gap:8px; align-items:stretch; }
+.community-btn{
+  flex:1; display:inline-flex; align-items:center; justify-content:center; gap:7px;
+  font-size:.86rem; font-weight:700; cursor:pointer; border-radius:12px;
+  border:1px solid var(--line); background:var(--panel-2); color:var(--paper); padding:11px 10px;
+}
+.community-btn:active{ transform:translateY(1px); }
+.reset-btn{
+  flex:0 0 auto; font-size:.8rem; font-weight:600; cursor:pointer; border-radius:12px;
+  border:1px solid var(--line); background:transparent; color:var(--dim); padding:11px 16px;
+}
+.reset-btn:disabled{ opacity:.4; cursor:default; }
+.reset-btn.armed{ color:#ff8a72; border-color:#ff6a52; background:rgba(255,106,82,.12); }
 
 .hint{ font-family:var(--mono); font-size:.68rem; line-height:1.6; color:var(--mut); margin:0; }
 .hint b{ color:var(--paper); }

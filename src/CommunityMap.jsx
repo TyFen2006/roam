@@ -43,7 +43,7 @@ function haversineKm(a, b) {
   return 2 * R * Math.asin(Math.sqrt(s));
 }
 
-export default function CommunityMap() {
+export default function CommunityMap({ onViewMine }) {
   const mapEl = useRef(null);
   const M = useRef({ map: null, bounds: null });
   const [state, setState] = useState('loading'); // loading | ready | empty | error
@@ -122,9 +122,12 @@ export default function CommunityMap() {
       <div className="com-wrap">
         <div ref={mapEl} className="mapbox" />
 
-        <div className="com-title">
-          <span className="ct-dot" /> Community map
-          <span className="ct-sub">everywhere Roam has run</span>
+        <div className="com-head">
+          <button className="com-back" onClick={onViewMine} aria-label="Back to my map">‹ My map</button>
+          <div className="com-title">
+            <span className="ct-dot" /> Community map
+            <span className="ct-sub">everywhere Roam has run</span>
+          </div>
         </div>
 
         <div className="com-controls">
