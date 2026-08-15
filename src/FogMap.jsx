@@ -9,6 +9,7 @@ maplibregl.setWorkerUrl(maplibreWorkerUrl);
 import './FogMap.css';
 import { supabase } from './lib/supabase.js';
 import { initials } from './lib/util.js';
+import RunCard from './RunCard.jsx';
 
 // Free, no-token dark basemap — CARTO "dark_all" RASTER tiles: rock-solid, no key,
 // no glyph/sprite deps (the vector style was silently failing → black map).
@@ -170,6 +171,7 @@ export default function FogMap({ mood = 'Explore', onEditMood, onViewCommunity, 
   const [ownedCount, setOwnedCount] = useState(0);
   const [resetArmed, setResetArmed] = useState(false);
   const resetTimer = useRef(0);
+  const [lastRun, setLastRun] = useState(null);
 
   const flash = (t) => { setToast(t); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 2200); };
   const refreshHud = () => setHud({ dist: +M.current.dist.toFixed(2), pts: M.current.pts, cells: M.current.cells.size });
@@ -331,6 +333,7 @@ export default function FogMap({ mood = 'Explore', onEditMood, onViewCommunity, 
       const rPts = Math.max(0, s.pts - (s.runStart?.pts ?? s.pts));
       const rDist = Math.max(0, s.dist - (s.runStart?.dist ?? s.dist));
       const rCells = Math.max(0, s.cells.size - (s.runStart?.cells ?? s.cells.size));
+      setLastRun({ route: run, dist: rDist, pts: rPts, cells: rCells, mood }); // → shareable card
       save(); // local mirror (offline safety)
       if (userId && supabase) {
         supabase.from('runs').insert({
@@ -672,6 +675,8 @@ export default function FogMap({ mood = 'Explore', onEditMood, onViewCommunity, 
         <b>Start GPS run</b> uses your real location — allow location, and your streets clear as you move (works outdoors, anywhere).
         <b> Demo</b> simulates a walk from where the map is centered so you can see it indoors. Territory saves on this device.
       </p>
+
+      {lastRun && <RunCard run={lastRun} onClose={() => setLastRun(null)} />}
     </div>
   );
 }

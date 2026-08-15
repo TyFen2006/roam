@@ -1,0 +1,32 @@
+.runcard-sheet{
+  position:fixed; inset:0; z-index:70; display:flex; align-items:center; justify-content:center;
+  padding:20px; background:rgba(4,7,11,.72); backdrop-filter:blur(4px);
+  animation:rcFade .22s ease both;
+}
+@keyframes rcFade{ from{opacity:0} to{opacity:1} }
+
+.runcard-inner{
+  width:100%; max-width:340px; display:flex; flex-direction:column; align-items:center; gap:14px;
+  animation:rcPop .28s cubic-bezier(.2,.7,.2,1) both;
+}
+@keyframes rcPop{ from{opacity:0; transform:translateY(16px) scale(.97)} to{opacity:1; transform:none} }
+
+.rc-head{ font-weight:800; font-size:1.15rem; color:var(--paper); }
+
+.rc-canvas{
+  width:100%; max-width:300px; height:auto; border-radius:16px;
+  border:1px solid var(--line); box-shadow:0 30px 60px -30px rgba(0,0,0,.9);
+}
+
+.rc-actions{ display:flex; gap:10px; width:100%; max-width:300px; }
+.rc-share{
+  flex:1; padding:14px; border:0; border-radius:13px; cursor:pointer;
+  background:var(--marigold); color:#181206; font-weight:800; font-size:1rem;
+  box-shadow:0 10px 24px -10px rgba(232,163,61,.7);
+}
+.rc-share:active{ transform:translateY(1px); }
+.rc-close{
+  flex:0 0 auto; padding:14px 20px; border-radius:13px; cursor:pointer;
+  background:transparent; border:1px solid var(--line); color:var(--mut); font-weight:600;
+}
+.rc-note{ font-size:.82rem; color:var(--mut); text-align:center; max-width:300px; line-height:1.4; }
