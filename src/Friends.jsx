@@ -3,8 +3,13 @@ import { supabase } from './lib/supabase.js';
 import { initials } from './lib/util.js';
 import { buildInviteLink } from './lib/invite.js';
 
+// The public app link — always the live site, so it's safe to broadcast
+// (unlike the personal invite, which auto-friends whoever taps it).
+const ROAM_URL = 'https://run-roam.netlify.app';
+
 function InviteCard({ userId }) {
   const [copied, setCopied] = useState(false);
+  const [copiedRoam, setCopiedRoam] = useState(false);
   const link = buildInviteLink(userId);
 
   async function copy() {
@@ -24,6 +29,20 @@ function InviteCard({ userId }) {
     copy();
   }
 
+  // Broadcast the plain app link (no auto-friend) — for stories, group chats, flyers.
+  async function shareRoam() {
+    const text = 'Check out Roam 🏃 — a running app scored on fun, not pace:';
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Roam', text, url: ROAM_URL }); return; }
+      catch (e) { if (e?.name === 'AbortError') return; }
+    }
+    try {
+      await navigator.clipboard.writeText(ROAM_URL);
+      setCopiedRoam(true);
+      setTimeout(() => setCopiedRoam(false), 1800);
+    } catch { /* ignore */ }
+  }
+
   return (
     <div className="invite-card">
       <div className="invite-top">
@@ -38,6 +57,11 @@ function InviteCard({ userId }) {
         <button className="invite-copy" onClick={copy}>{copied ? 'Copied ✓' : 'Copy'}</button>
       </div>
       <button className="invite-share" onClick={share}>Share invite</button>
+
+      <div className="invite-alt">
+        <span>Just spreading the word?</span>
+        <button className="invite-plain" onClick={shareRoam}>{copiedRoam ? 'Link copied ✓' : 'Share Roam'}</button>
+      </div>
     </div>
   );
 }

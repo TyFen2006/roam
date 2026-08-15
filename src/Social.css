@@ -148,3 +148,13 @@
   background:var(--marigold); color:#181206; font-weight:800; font-size:.95rem;
 }
 .invite-share:active{ transform:translateY(1px); }
+.invite-alt{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  margin-top:2px; padding-top:12px; border-top:1px solid var(--line);
+}
+.invite-alt span{ font-size:.8rem; color:var(--mut); }
+.invite-plain{
+  flex:none; background:transparent; border:1px solid var(--line); border-radius:10px;
+  padding:8px 14px; color:var(--paper); font-weight:700; font-size:.82rem; cursor:pointer;
+}
+.invite-plain:active{ transform:scale(.97); }
