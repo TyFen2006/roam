@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import FogMap from './FogMap.jsx';
+import CommunityMap from './CommunityMap.jsx';
 import Social from './Social.jsx';
 import RunMoods from './RunMoods.jsx';
 import Auth from './Auth.jsx';
@@ -45,6 +46,7 @@ const TABS = [
 
 export default function App() {
   const [tab, setTab] = useState('map');
+  const [mapView, setMapView] = useState('mine'); // 'mine' = personal fog map | 'world' = community map
   const [mood, setMood] = useState('Explore');
   const [session, setSession] = useState(hasSupabase ? undefined : null); // undefined = still loading
   const [profile, setProfile] = useState(null);
@@ -155,7 +157,17 @@ export default function App() {
       {toast && <div className="toast" role="status">{toast}</div>}
 
       <div className="view">
-        {tab === 'map' && <FogMap mood={mood} onEditMood={() => setTab('start')} userId={session?.user?.id} myName={profile?.display_name || session?.user?.email} />}
+        {tab === 'map' && (
+          <>
+            <div className="map-switch">
+              <button className={mapView === 'mine' ? 'on' : ''} onClick={() => setMapView('mine')}>My map</button>
+              <button className={mapView === 'world' ? 'on' : ''} onClick={() => setMapView('world')}>Community</button>
+            </div>
+            {mapView === 'mine'
+              ? <FogMap mood={mood} onEditMood={() => setTab('start')} userId={session?.user?.id} myName={profile?.display_name || session?.user?.email} />
+              : <CommunityMap />}
+          </>
+        )}
         {tab === 'social' && <Social userId={session?.user?.id} />}
         {tab === 'start' && (
           <RunMoods mood={mood} onPick={(m) => { setMood(m); setTab('map'); }} />

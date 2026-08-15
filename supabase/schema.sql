@@ -354,3 +354,30 @@ returns table(cell text, mine boolean) language sql security definer set search_
   from (select distinct cell from public.territory where user_id = auth.uid()) t
   join public.cell_owners co on co.cell = t.cell;
 $$;
+
+
+-- ────────────────────────────────────────────────────────────────────────────
+--  10 · COMMUNITY MAP  — everyone's runs as anonymous trail lines (the global map)
+-- ────────────────────────────────────────────────────────────────────────────
+-- Returns each run's route as an ANONYMOUS line (no user_id) with the first &
+-- last 2 points TRIMMED, so a run can't be traced back to someone's home/start.
+-- SECURITY DEFINER so it can read across users, but this is the *only* thing it
+-- exposes: trimmed geometry, nothing identifying. Runs shorter than 8 points are
+-- skipped (too little to draw and too easy to localise).
+create or replace function public.community_trails(max_runs int default 4000)
+returns table(route jsonb)
+language sql stable security definer set search_path = public as $$
+  select (
+    select jsonb_agg(e.pt order by e.ord)
+    from jsonb_array_elements(r.route) with ordinality as e(pt, ord)
+    where e.ord > 2 and e.ord < jsonb_array_length(r.route) - 1
+  ) as route
+  from public.runs r
+  where r.route is not null
+    and jsonb_typeof(r.route) = 'array'
+    and jsonb_array_length(r.route) >= 8
+  order by r.created_at desc
+  limit greatest(1, least(max_runs, 10000));
+$$;
+
+grant execute on function public.community_trails(int) to anon, authenticated;

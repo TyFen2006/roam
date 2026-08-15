@@ -42,6 +42,19 @@ button{font-family:inherit}
 }
 .signout:hover{ border-color:#ff6a52; color:#ff8a72; }
 
+/* My-map / Community map toggle (floats over the top of the map tab) */
+.map-switch{
+  position:absolute; top:calc(70px + env(safe-area-inset-top)); left:50%; transform:translateX(-50%);
+  z-index:25; display:flex; gap:3px; padding:4px;
+  background:rgba(8,12,18,.9); border:1px solid var(--line); border-radius:999px; backdrop-filter:blur(8px);
+  box-shadow:0 8px 22px -10px rgba(0,0,0,.8);
+}
+.map-switch button{
+  border:0; background:none; color:var(--mut); cursor:pointer;
+  font-size:.78rem; font-weight:700; padding:6px 16px; border-radius:999px;
+}
+.map-switch button.on{ background:var(--marigold); color:#181206; }
+
 /* transient toast (e.g. new-friend confirmation) */
 .toast{
   position:absolute; left:50%; top:calc(64px + env(safe-area-inset-top)); transform:translateX(-50%);
