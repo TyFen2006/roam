@@ -45,3 +45,7 @@
   border:1px solid #4a3a1e; border-radius:14px; padding:12px 16px; margin-top:-6px;
 }
 .auth-invite b{ color:var(--marigold-2); }
+
+.auth-legal{ text-align:center; font-size:.74rem; line-height:1.5; color:var(--dim); margin:0; max-width:32ch; }
+.auth-legal button{ background:none; border:0; padding:0; cursor:pointer; color:var(--mut); font-size:.74rem; text-decoration:underline; }
+.auth-legal button:hover{ color:var(--marigold-2); }

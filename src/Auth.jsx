@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { supabase } from './lib/supabase.js';
 import './Auth.css';
 
-export default function Auth({ inviterName }) {
+export default function Auth({ inviterName, onOpenLegal }) {
   const [mode, setMode] = useState(inviterName ? 'signup' : 'login'); // 'login' | 'signup'
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
@@ -80,6 +80,14 @@ export default function Auth({ inviterName }) {
             : <>Already have one? <button type="button" onClick={() => setMode('login')}>Log in</button></>}
         </p>
       </form>
+
+      {onOpenLegal && (
+        <p className="auth-legal">
+          By continuing you agree to our{' '}
+          <button type="button" onClick={() => onOpenLegal('terms')}>Terms</button> and{' '}
+          <button type="button" onClick={() => onOpenLegal('privacy')}>Privacy Policy</button>.
+        </p>
+      )}
     </div>
   );
 }

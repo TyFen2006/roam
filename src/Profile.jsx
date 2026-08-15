@@ -6,7 +6,7 @@ import StravaConnect from './StravaConnect.jsx';
 import PatchesGallery from './Patches.jsx';
 import './Profile.css';
 
-export default function Profile({ session, profile, onUpdated }) {
+export default function Profile({ session, profile, onUpdated, onOpenLegal }) {
   const [name, setName] = useState(profile?.display_name || '');
   const [username, setUsername] = useState(profile?.username || '');
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '');
@@ -115,6 +115,17 @@ export default function Profile({ session, profile, onUpdated }) {
       <StravaConnect userId={session?.user?.id} />
 
       <div className="pe-meta">{(profile?.rank || 'Wanderer')} · Level {profile?.level ?? 1}<br />{session?.user?.email}</div>
+
+      {onOpenLegal && (
+        <div className="pe-legal">
+          <button onClick={() => onOpenLegal('privacy')}>Privacy</button>
+          <span>·</span>
+          <button onClick={() => onOpenLegal('terms')}>Terms</button>
+          <span>·</span>
+          <button onClick={() => onOpenLegal('safety')}>Safety</button>
+        </div>
+      )}
+
       <button className="signout" onClick={() => supabase.auth.signOut()}>Sign out</button>
     </div>
   );

@@ -66,3 +66,9 @@
 .strava-btn{ width:100%; padding:12px; border-radius:11px; border:0; cursor:pointer; font-weight:800; font-size:.95rem; background:#fc4c02; color:#fff; }
 .strava-btn:disabled{ opacity:.6; cursor:default; }
 .strava-msg{ font-size:.85rem; color:var(--marigold-2); text-align:center; }
+
+/* legal links */
+.pe-legal{ display:flex; align-items:center; justify-content:center; gap:8px; margin-top:16px; }
+.pe-legal button{ background:none; border:0; cursor:pointer; color:var(--mut); font-size:.8rem; text-decoration:underline; padding:2px; }
+.pe-legal button:hover{ color:var(--marigold-2); }
+.pe-legal span{ color:var(--dim); font-size:.75rem; }

@@ -5,6 +5,7 @@ import Social from './Social.jsx';
 import RunMoods from './RunMoods.jsx';
 import Auth from './Auth.jsx';
 import Onboarding from './Onboarding.jsx';
+import Legal from './Legal.jsx';
 import Profile from './Profile.jsx';
 import Quests from './Quests.jsx';
 import { supabase, hasSupabase } from './lib/supabase.js';
@@ -54,6 +55,8 @@ export default function App() {
   const [pendingInvite, setPendingInvite] = useState(() => (hasSupabase ? captureInvite() : null));
   const [inviterName, setInviterName] = useState('');
   const [toast, setToast] = useState('');
+  const [legal, setLegal] = useState(null); // null | 'privacy' | 'terms' | 'safety'
+  const legalNode = legal && <Legal doc={legal} onClose={() => setLegal(null)} />;
 
   useEffect(() => {
     if (!hasSupabase) return;
@@ -123,7 +126,7 @@ export default function App() {
     return <div className="app boot"><div className="boot-mark">ROAM</div></div>;
   }
   if (hasSupabase && !session) {
-    return <Auth inviterName={inviterName} />;
+    return <><Auth inviterName={inviterName} onOpenLegal={setLegal} />{legalNode}</>;
   }
 
   if (showIntro) {
@@ -167,8 +170,10 @@ export default function App() {
           <RunMoods mood={mood} onPick={(m) => { setMood(m); setTab('map'); }} />
         )}
         {tab === 'quests' && <Quests userId={session?.user?.id} onReward={loadProfile} />}
-        {tab === 'you' && <Profile session={session} profile={profile} onUpdated={loadProfile} />}
+        {tab === 'you' && <Profile session={session} profile={profile} onUpdated={loadProfile} onOpenLegal={setLegal} />}
       </div>
+
+      {legalNode}
 
       <nav className="tabbar">
         {TABS.map(t => (
