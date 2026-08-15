@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { supabase } from './lib/supabase.js';
 import './Auth.css';
 
-export default function Auth() {
-  const [mode, setMode] = useState('login'); // 'login' | 'signup'
+export default function Auth({ inviterName }) {
+  const [mode, setMode] = useState(inviterName ? 'signup' : 'login'); // 'login' | 'signup'
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [name, setName] = useState('');
@@ -41,6 +41,10 @@ export default function Auth() {
         <div className="auth-mark">ROAM</div>
         <div className="auth-tag">running scored on fun, not pace</div>
       </div>
+
+      {inviterName && (
+        <div className="auth-invite">🏃 <b>{inviterName}</b> invited you to Roam — make an account to run together.</div>
+      )}
 
       <form className="auth-card" onSubmit={submit}>
         <div className="auth-switch">

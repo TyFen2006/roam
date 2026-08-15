@@ -1,6 +1,46 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from './lib/supabase.js';
 import { initials } from './lib/util.js';
+import { buildInviteLink } from './lib/invite.js';
+
+function InviteCard({ userId }) {
+  const [copied, setCopied] = useState(false);
+  const link = buildInviteLink(userId);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch { /* clipboard blocked — the field is selectable as a fallback */ }
+  }
+
+  async function share() {
+    const text = 'Come run with me on Roam 🏃 — running scored on fun, not pace. Tap to join me:';
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Roam', text, url: link }); return; }
+      catch (e) { if (e?.name === 'AbortError') return; }
+    }
+    copy();
+  }
+
+  return (
+    <div className="invite-card">
+      <div className="invite-top">
+        <span className="invite-emoji">🔗</span>
+        <div>
+          <div className="invite-title">Invite a friend</div>
+          <div className="invite-sub">They tap your link, sign in, and you're instantly connected — no username needed.</div>
+        </div>
+      </div>
+      <div className="invite-row">
+        <input className="invite-link" readOnly value={link} onFocus={e => e.target.select()} aria-label="Your invite link" />
+        <button className="invite-copy" onClick={copy}>{copied ? 'Copied ✓' : 'Copy'}</button>
+      </div>
+      <button className="invite-share" onClick={share}>Share invite</button>
+    </div>
+  );
+}
 
 function Avatar({ p, size = 46 }) {
   const ini = initials(p?.display_name || p?.username);
@@ -103,6 +143,8 @@ export default function Friends({ userId }) {
 
   return (
     <>
+      <InviteCard userId={userId} />
+
       {requests.length > 0 && (
         <>
           <div className="sec-title">Friend requests <span className="badge-count">{requests.length}</span></div>

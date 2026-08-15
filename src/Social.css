@@ -121,3 +121,30 @@
 .grow:active{ transform:scale(.995); }
 .gemoji-sm{ width:42px; height:42px; border-radius:12px; background:var(--ink-2); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:1.5rem; flex:none; }
 .g-create{ display:flex; flex-direction:column; gap:12px; }
+
+/* ---- invite a friend ---- */
+.invite-card{
+  background:linear-gradient(160deg, color-mix(in srgb, var(--marigold) 16%, var(--panel)), var(--panel));
+  border:1px solid var(--line); border-left:3px solid var(--marigold); border-radius:16px;
+  padding:15px; margin:6px 2px 4px; display:flex; flex-direction:column; gap:12px;
+}
+.invite-top{ display:flex; align-items:flex-start; gap:11px; }
+.invite-emoji{ font-size:1.5rem; line-height:1.1; }
+.invite-title{ font-weight:800; font-size:1.02rem; }
+.invite-sub{ font-size:.82rem; color:var(--mut); line-height:1.45; margin-top:3px; }
+.invite-row{ display:flex; gap:8px; }
+.invite-link{
+  flex:1; min-width:0; background:var(--ink-2); border:1px solid var(--line); border-radius:11px;
+  padding:10px 12px; color:var(--mut); font-family:var(--mono); font-size:.78rem;
+}
+.invite-link:focus{ outline:none; border-color:var(--marigold); color:var(--paper); }
+.invite-copy{
+  flex:none; background:var(--panel-2); border:1px solid var(--line); border-radius:11px;
+  padding:0 15px; color:var(--paper); font-weight:700; font-size:.85rem; cursor:pointer;
+}
+.invite-copy:active{ transform:scale(.97); }
+.invite-share{
+  border:0; border-radius:12px; padding:12px; cursor:pointer;
+  background:var(--marigold); color:#181206; font-weight:800; font-size:.95rem;
+}
+.invite-share:active{ transform:translateY(1px); }

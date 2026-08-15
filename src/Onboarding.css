@@ -1,0 +1,59 @@
+.onboard{
+  position:fixed; inset:0; z-index:60; max-width:520px; margin:0 auto;
+  display:flex; flex-direction:column;
+  padding:calc(24px + env(safe-area-inset-top)) 26px calc(26px + env(safe-area-inset-bottom));
+  background:
+    radial-gradient(760px 480px at 82% -6%, rgba(232,163,61,.12), transparent 58%),
+    radial-gradient(600px 400px at 12% 108%, rgba(51,160,143,.10), transparent 60%),
+    var(--ink);
+}
+
+.ob-skip{
+  align-self:flex-end; background:none; border:0; cursor:pointer;
+  font-family:var(--mono); font-size:.68rem; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--dim); padding:6px 4px;
+}
+.ob-skip:hover{ color:var(--mut); }
+
+.ob-stage{
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  text-align:center; gap:14px;
+  animation:obIn .42s cubic-bezier(.2,.7,.2,1);
+}
+@keyframes obIn{ from{opacity:0; transform:translateY(14px)} to{opacity:1; transform:none} }
+
+.ob-artwrap{
+  width:100%; max-width:280px; margin-bottom:8px;
+  background:var(--panel); border:1px solid var(--line); border-radius:20px;
+  padding:16px; box-shadow:0 30px 60px -38px rgba(0,0,0,.9);
+}
+.ob-art{ width:100%; height:auto; display:block; }
+.ob-art-lbl{ font-family:var(--mono); font-size:8px; letter-spacing:.14em; fill:var(--mut); }
+.ob-art-x{ font-family:var(--mono); font-size:9px; letter-spacing:.03em; fill:var(--dim); }
+
+.ob-eyebrow{
+  font-family:var(--mono); font-size:.68rem; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--marigold);
+}
+.ob-title{
+  margin:0; font-size:1.7rem; line-height:1.12; letter-spacing:-.02em; font-weight:900;
+  max-width:16ch;
+}
+.ob-body{
+  margin:0; max-width:34ch; line-height:1.55; font-size:.98rem; color:var(--mut);
+}
+
+.ob-foot{ display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:22px; }
+.ob-dots{ display:flex; gap:8px; }
+.ob-dot{
+  width:8px; height:8px; border-radius:50%; border:0; cursor:pointer; padding:0;
+  background:var(--line); transition:all .25s;
+}
+.ob-dot.on{ background:var(--marigold); width:22px; border-radius:999px; }
+
+.ob-next{
+  padding:13px 26px; border-radius:12px; border:0; cursor:pointer;
+  background:var(--marigold); color:#181206; font-weight:800; font-size:1rem;
+  box-shadow:0 10px 24px -10px rgba(232,163,61,.7);
+}
+.ob-next:active{ transform:translateY(1px); }

@@ -3,12 +3,14 @@ import FogMap from './FogMap.jsx';
 import Social from './Social.jsx';
 import RunMoods from './RunMoods.jsx';
 import Auth from './Auth.jsx';
+import Onboarding from './Onboarding.jsx';
 import Profile from './Profile.jsx';
 import Quests from './Quests.jsx';
 import { supabase, hasSupabase } from './lib/supabase.js';
 import { initials } from './lib/util.js';
 import { stravaExchange } from './lib/strava.js';
 import { levelFromPoints } from './lib/levels.js';
+import { captureInvite, clearPendingInvite, acceptInvite, fetchInviterName } from './lib/invite.js';
 
 const I = {
   map:   <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z M9 4v14 M15 6v14" />,
@@ -46,6 +48,10 @@ export default function App() {
   const [mood, setMood] = useState('Explore');
   const [session, setSession] = useState(hasSupabase ? undefined : null); // undefined = still loading
   const [profile, setProfile] = useState(null);
+  const [showIntro, setShowIntro] = useState(() => !localStorage.getItem('roam.onboarded.v1'));
+  const [pendingInvite, setPendingInvite] = useState(() => (hasSupabase ? captureInvite() : null));
+  const [inviterName, setInviterName] = useState('');
+  const [toast, setToast] = useState('');
 
   useEffect(() => {
     if (!hasSupabase) return;
@@ -61,6 +67,33 @@ export default function App() {
   }, [session]);
 
   useEffect(() => { loadProfile(); }, [loadProfile]);
+
+  // Someone arrived on an invite link but isn't signed in yet — greet them by
+  // the inviter's name on the auth screen to boost sign-up.
+  useEffect(() => {
+    if (!hasSupabase || session || !pendingInvite) return;
+    fetchInviterName(supabase, pendingInvite).then(n => n && setInviterName(n));
+  }, [session, pendingInvite]);
+
+  // Signed in with a pending invite → become friends automatically.
+  useEffect(() => {
+    if (!session?.user || !pendingInvite) return;
+    acceptInvite(supabase, pendingInvite, session.user.id).then(res => {
+      clearPendingInvite();
+      setPendingInvite(null);
+      if (res?.ok || res?.already) {
+        if (res.name) setToast(`🎉 You're now friends with ${res.name}`);
+        loadProfile();
+      }
+    });
+  }, [session, pendingInvite]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-dismiss the toast.
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(''), 4000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // Handle the Strava OAuth redirect (?code=...) after the user connects.
   useEffect(() => {
@@ -88,7 +121,16 @@ export default function App() {
     return <div className="app boot"><div className="boot-mark">ROAM</div></div>;
   }
   if (hasSupabase && !session) {
-    return <Auth />;
+    return <Auth inviterName={inviterName} />;
+  }
+
+  if (showIntro) {
+    const finishIntro = (goStart) => {
+      localStorage.setItem('roam.onboarded.v1', '1');
+      setShowIntro(false);
+      if (goStart) setTab('start');
+    };
+    return <Onboarding onDone={() => finishIntro(false)} onStart={() => finishIntro(true)} />;
   }
 
   const lv = levelFromPoints(profile?.points || 0);
@@ -109,6 +151,8 @@ export default function App() {
           </span>
         </button>
       </div>
+
+      {toast && <div className="toast" role="status">{toast}</div>}
 
       <div className="view">
         {tab === 'map' && <FogMap mood={mood} onEditMood={() => setTab('start')} userId={session?.user?.id} myName={profile?.display_name || session?.user?.email} />}
