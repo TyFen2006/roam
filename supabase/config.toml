@@ -1,0 +1,8 @@
+# Roam · Supabase project configuration
+# Full reference: https://supabase.com/docs/guides/cli/config
+#
+# Only project_id is required for the GitHub integration to know which project
+# to deploy migrations to. The other settings below are the CLI defaults and
+# only matter if you ever run Supabase locally — the hosted project ignores them.
+
+project_id = "aurgldrroeufyuegssrc"

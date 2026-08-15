@@ -1,10 +1,13 @@
 -- ============================================================================
---  ROAM · Supabase schema
+--  ROAM · initial schema (baseline migration)
 --  ---------------------------------------------------------------------------
---  One file, safe to re-run (idempotent). To use: Supabase → SQL Editor →
---  New query → paste → Run. Save it as a named query: "Roam — Schema".
+--  This is the full Roam database, auto-applied by the Supabase GitHub
+--  integration on push to main. Every statement is idempotent, so it is safe
+--  even against a database that already has these objects.
 --
---  Sections:   1) Profiles      2) Avatars (storage)      3) Runs
+--  Going forward, DON'T edit this file — add a NEW file in supabase/migrations/
+--  named <timestamp>_description.sql (e.g. 20260901120000_add_reactions.sql)
+--  with just the change. Each new file is applied in filename order.
 -- ============================================================================
 
 
