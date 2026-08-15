@@ -126,7 +126,6 @@ export default function CommunityMap({ onViewMine }) {
           <button className="com-back" onClick={onViewMine} aria-label="Back to my map">‹ My map</button>
           <div className="com-title">
             <span className="ct-dot" /> Community map
-            <span className="ct-sub">everywhere Roam has run</span>
           </div>
         </div>
 
