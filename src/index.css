@@ -7,7 +7,10 @@
   --tabh: 80px;
 }
 *{box-sizing:border-box}
-html,body,#root{height:100%}
+/* Lock the document to the *visible* (dynamic) viewport so the whole page can't
+   scroll — otherwise the bottom tab bar floats up until the page settles. Only
+   .view scrolls. */
+html,body,#root{height:100dvh; overflow:hidden}
 body{
   margin:0; background:var(--ink); color:var(--paper);
   font-family:var(--sans); -webkit-font-smoothing:antialiased;
