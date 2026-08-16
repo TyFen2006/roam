@@ -172,6 +172,7 @@ export default function FogMap({ mood = 'Explore', onEditMood, onViewCommunity, 
   const [resetArmed, setResetArmed] = useState(false);
   const resetTimer = useRef(0);
   const [lastRun, setLastRun] = useState(null);
+  const [warnOpen, setWarnOpen] = useState(false);
 
   const flash = (t) => { setToast(t); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 2200); };
   const refreshHud = () => setHud({ dist: +M.current.dist.toFixed(2), pts: M.current.pts, cells: M.current.cells.size });
@@ -242,9 +243,17 @@ export default function FogMap({ mood = 'Explore', onEditMood, onViewCommunity, 
   }
 
   // ---- real GPS ----
+  // First-ever GPS run shows a one-time "keep the app open" explainer (Roam can't
+  // track in the background yet); after that it starts straight away.
   function startGPS() {
-    const s = M.current;
     if (!('geolocation' in navigator)) { flash('No GPS on this device'); return; }
+    let warned = false;
+    try { warned = !!localStorage.getItem('roam.runWarn.v1'); } catch { /* ignore */ }
+    if (!warned) { setWarnOpen(true); return; }
+    beginGPS();
+  }
+  function beginGPS() {
+    const s = M.current;
     stopRun();
     s.cur = []; s.following = true; setShowRecenter(false);
     setStatus('gps'); requestWake();
@@ -255,6 +264,11 @@ export default function FogMap({ mood = 'Explore', onEditMood, onViewCommunity, 
       (err) => flash(err.code === 1 ? 'Location permission denied' : 'Waiting for GPS…'),
       { enableHighAccuracy: true, maximumAge: 1000, timeout: 15000 }
     );
+  }
+  function confirmWarnAndRun() {
+    try { localStorage.setItem('roam.runWarn.v1', '1'); } catch { /* ignore */ }
+    setWarnOpen(false);
+    beginGPS();
   }
 
   // ---- demo (simulated walk from wherever the map is centered) ----
@@ -597,6 +611,7 @@ export default function FogMap({ mood = 'Explore', onEditMood, onViewCommunity, 
           </button>
         )}
         {status === 'gps' && <div className="rec-badge"><span className="d" /> RECORDING</div>}
+        {status === 'gps' && <div className="keep-open">📱 Keep Roam open — tracking pauses if you switch apps or lock your phone</div>}
         {showRecenter && <button className="recenter" onClick={recenter}>◎ Recenter</button>}
         {!liveCode ? (
           <button className="live-btn" onClick={() => setLiveOpen(true)}>👥 Run live</button>
@@ -641,6 +656,16 @@ export default function FogMap({ mood = 'Explore', onEditMood, onViewCommunity, 
               📍 Find {spot.name ? spot.name : (spot.poi && spot.poi !== 'road' && spot.poi !== 'spot' ? `the ${spot.poi}` : 'the spot')}
             </button>
             <button className="reroll-spot" onClick={rerollSpot} title="Pick a new spot">🎲</button>
+          </div>
+        )}
+        {warnOpen && (
+          <div className="live-sheet">
+            <div className="live-sheet-inner">
+              <div className="ls-title">📱 Keep Roam open</div>
+              <p className="ls-sub">Roam tracks your run only while the app is open on your screen — it can’t record in the background yet. We’ll keep your screen awake; just don’t switch apps or lock your phone mid-run.</p>
+              <button className="ls-start" onClick={confirmWarnAndRun}>Got it — start run</button>
+              <button className="ls-close" onClick={() => setWarnOpen(false)}>Cancel</button>
+            </div>
           </div>
         )}
         {toast && <div className="toast">{toast}</div>}

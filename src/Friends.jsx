@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from './lib/supabase.js';
 import { initials } from './lib/util.js';
+import { levelFromPoints } from './lib/levels.js';
 import { buildInviteLink } from './lib/invite.js';
 
 // The public app link — always the live site, so it's safe to broadcast
@@ -85,6 +86,17 @@ export default function Friends({ userId }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
+  const [pFriends, setPFriends] = useState(null); // the viewed person's friends
+  const [removeArm, setRemoveArm] = useState(false);
+
+  // When viewing a person, load their friends (for friends-of-friends browsing).
+  useEffect(() => {
+    setRemoveArm(false);
+    if (sel.t !== 'friend' || !sel.p?.id || !supabase) { setPFriends(null); return; }
+    setPFriends(null);
+    supabase.rpc('friends_of', { target: sel.p.id })
+      .then(({ data, error }) => setPFriends(error ? [] : (data || [])));
+  }, [sel]);
 
   const load = useCallback(async () => {
     if (!userId || !supabase) return;
@@ -142,8 +154,26 @@ export default function Friends({ userId }) {
   async function accept(fid) { setBusy(fid); await supabase.from('friendships').update({ status: 'accepted' }).eq('id', fid); await load(); setBusy(''); }
   async function decline(fid) { setBusy(fid); await supabase.from('friendships').delete().eq('id', fid); await load(); setBusy(''); }
 
+  // Two-tap guard so a friend isn't removed by an accidental tap.
+  async function removeFriend(id) {
+    if (!removeArm) { setRemoveArm(true); setTimeout(() => setRemoveArm(false), 3500); return; }
+    setRemoveArm(false); setBusy(id); setErr('');
+    try {
+      const { error } = await supabase.from('friendships').delete()
+        .or(`and(requester.eq.${userId},addressee.eq.${id}),and(requester.eq.${id},addressee.eq.${userId})`);
+      if (error) throw error;
+      await load();
+      setSel({ t: 'home' });
+    } catch (e) { setErr(e.message || 'Could not remove'); } finally { setBusy(''); }
+  }
+
   if (sel.t === 'friend') {
     const p = sel.p;
+    const lv = levelFromPoints(p.points || 0);
+    const isMe = p.id === userId;
+    const isFriend = friends.some(f => f.id === p.id);
+    const sent = outgoing.has(p.id);
+    const theirs = (pFriends || []).filter(f => f.id !== userId);
     return (
       <>
         <button className="back" onClick={() => setSel({ t: 'home' })}>‹ Back</button>
@@ -152,15 +182,53 @@ export default function Friends({ userId }) {
             <Avatar p={p} size={64} />
             <div>
               <h2>{p.display_name || 'Runner'}</h2>
-              <div className="rankline">@{p.username || '—'} · {p.rank || 'Wanderer'} · Lv {p.level ?? 1}</div>
+              <div className="rankline">@{p.username || '—'} · {lv.rank} · Lv {lv.level}</div>
             </div>
           </div>
           <div className="statrow">
             <div className="st"><div className="n">{p.points ?? 0}</div><div className="l">points</div></div>
-            <div className="st"><div className="n">Lv {p.level ?? 1}</div><div className="l">{p.rank || 'Wanderer'}</div></div>
+            <div className="st"><div className="n">Lv {lv.level}</div><div className="l">{lv.rank}</div></div>
           </div>
-          <p className="s-note">Their runs & badges will show here once we open run-sharing between friends.</p>
+
+          {!isMe && (
+            <div className="person-actions">
+              {isFriend
+                ? <button className={`btn-remove ${removeArm ? 'armed' : ''}`} disabled={busy === p.id} onClick={() => removeFriend(p.id)}>
+                    {removeArm ? '⚠ Tap again to remove friend' : 'Remove friend'}
+                  </button>
+                : sent
+                  ? <span className="tag-sent">Requested</span>
+                  : <button className="btn-add wide" disabled={busy === p.id} onClick={() => sendRequest(p.id)}>+ Add friend</button>}
+            </div>
+          )}
         </div>
+
+        <div className="sec-title">{isMe ? 'Your friends' : `${p.display_name || 'Their'}’s friends`}</div>
+        {pFriends === null ? <div className="s-empty">Loading…</div>
+          : theirs.length === 0 ? <div className="s-empty">No friends to show yet.</div>
+            : (
+              <div className="friends">
+                {theirs.map(f => {
+                  const fr = friends.some(x => x.id === f.id);
+                  const st = outgoing.has(f.id);
+                  return (
+                    <div className="friendrow" key={f.id}>
+                      <button className="frow-main" onClick={() => setSel({ t: 'friend', p: f })}>
+                        <Avatar p={f} />
+                        <div className="fmid">
+                          <div className="fname">{f.display_name || 'Runner'}</div>
+                          <div className="fsub">@{f.username || '—'}</div>
+                        </div>
+                      </button>
+                      {fr ? <span className="tag-friend">Friends ✓</span>
+                        : st ? <span className="tag-sent">Requested</span>
+                          : <button className="btn-add" disabled={busy === f.id} onClick={() => sendRequest(f.id)}>+ Add</button>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+        {err && <div className="s-err">{err}</div>}
       </>
     );
   }

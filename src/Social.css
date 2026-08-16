@@ -158,3 +158,17 @@
   padding:8px 14px; color:var(--paper); font-weight:700; font-size:.82rem; cursor:pointer;
 }
 .invite-plain:active{ transform:scale(.97); }
+
+/* ---- person profile: add/remove + friends-of-friends ---- */
+.person-actions{ margin-top:16px; }
+.btn-add.wide{ width:100%; padding:12px; font-size:.95rem; }
+.btn-remove{
+  width:100%; padding:11px; border-radius:12px; cursor:pointer; font-weight:600; font-size:.9rem;
+  background:transparent; border:1px solid var(--line); color:var(--mut);
+}
+.btn-remove:disabled{ opacity:.5; cursor:default; }
+.btn-remove.armed{ color:#ff8a72; border-color:#ff6a52; background:rgba(255,106,82,.12); }
+.frow-main{
+  display:flex; align-items:center; gap:12px; flex:1; min-width:0;
+  background:none; border:0; padding:0; cursor:pointer; text-align:left; color:var(--paper);
+}
