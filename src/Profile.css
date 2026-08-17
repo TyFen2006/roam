@@ -72,3 +72,17 @@
 .pe-legal button{ background:none; border:0; cursor:pointer; color:var(--mut); font-size:.8rem; text-decoration:underline; padding:2px; }
 .pe-legal button:hover{ color:var(--marigold-2); }
 .pe-legal span{ color:var(--dim); font-size:.75rem; }
+
+/* "Your map" entry card */
+.mymap-open{
+  display:flex; align-items:center; gap:13px; width:100%; margin-top:20px; cursor:pointer;
+  text-align:left; color:var(--paper); padding:14px;
+  background:linear-gradient(160deg, color-mix(in srgb, var(--marigold) 16%, var(--panel)), var(--panel));
+  border:1px solid var(--line); border-radius:16px;
+}
+.mymap-open:active{ transform:scale(.99); }
+.mmo-emoji{ font-size:1.6rem; line-height:1; }
+.mmo-txt{ flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.mmo-title{ font-weight:800; font-size:1.02rem; }
+.mmo-sub{ font-size:.82rem; color:var(--mut); }
+.mmo-go{ color:var(--dim); font-size:1.3rem; }

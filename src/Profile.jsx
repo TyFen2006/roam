@@ -4,6 +4,7 @@ import { initials } from './lib/util.js';
 import { levelFromPoints } from './lib/levels.js';
 import StravaConnect from './StravaConnect.jsx';
 import PatchesGallery from './Patches.jsx';
+import MyMap from './MyMap.jsx';
 import './Profile.css';
 
 export default function Profile({ session, profile, onUpdated, onOpenLegal }) {
@@ -16,6 +17,7 @@ export default function Profile({ session, profile, onUpdated, onOpenLegal }) {
   const [msg, setMsg] = useState('');
   const fileRef = useRef(null);
   const [patches, setPatches] = useState([]);
+  const [showMap, setShowMap] = useState(false);
 
   useEffect(() => {
     if (!session?.user) return;
@@ -110,6 +112,15 @@ export default function Profile({ session, profile, onUpdated, onOpenLegal }) {
         <div className="pe-level-sub">{profile?.points ?? 0} pts · {lv.toNext} to Lv {lv.level + 1}</div>
       </div>
 
+      <button className="mymap-open" onClick={() => setShowMap(true)}>
+        <span className="mmo-emoji">🗺️</span>
+        <span className="mmo-txt">
+          <span className="mmo-title">Your map</span>
+          <span className="mmo-sub">Everywhere you’ve roamed, all in one place</span>
+        </span>
+        <span className="mmo-go">›</span>
+      </button>
+
       <PatchesGallery earned={patches} />
 
       <StravaConnect userId={session?.user?.id} />
@@ -127,6 +138,8 @@ export default function Profile({ session, profile, onUpdated, onOpenLegal }) {
       )}
 
       <button className="signout" onClick={() => supabase.auth.signOut()}>Sign out</button>
+
+      {showMap && <MyMap userId={session?.user?.id} onClose={() => setShowMap(false)} />}
     </div>
   );
 }
