@@ -47,6 +47,27 @@ function installPWAHead() {
 
 try { installPWAHead(); } catch (e) { /* non-fatal */ }
 
+// iOS/mobile viewport height is unreliable — `dvh` can freeze at a stale value
+// during the standalone launch animation or a rotation, leaving the bottom tab
+// bar locked too high. So measure the real visible height in JS and expose it as
+// --app-height (CSS uses it with a 100dvh fallback). window.innerHeight is used
+// (not visualViewport) so the on-screen keyboard doesn't resize the whole app.
+function installAppHeight() {
+  const set = () => {
+    const h = window.innerHeight;
+    // Guard against a bogus 0 (some transient states) collapsing the app — keep
+    // the 100dvh fallback until a real height comes in.
+    if (h > 0) document.documentElement.style.setProperty('--app-height', h + 'px');
+  };
+  set();
+  window.addEventListener('resize', set);
+  window.addEventListener('pageshow', set);
+  window.addEventListener('orientationchange', () => { set(); setTimeout(set, 250); setTimeout(set, 600); });
+  requestAnimationFrame(set);     // catch a stale first-frame value
+  setTimeout(set, 300);           // and again once the launch settles
+}
+try { installAppHeight(); } catch (e) { /* non-fatal */ }
+
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />

@@ -7,10 +7,11 @@
   --tabh: 80px;
 }
 *{box-sizing:border-box}
-/* Lock the document to the *visible* (dynamic) viewport so the whole page can't
-   scroll — otherwise the bottom tab bar floats up until the page settles. Only
-   .view scrolls. */
-html,body,#root{height:100dvh; overflow:hidden}
+/* Lock the document to the *visible* viewport so the whole page can't scroll —
+   otherwise the bottom tab bar floats up until the page settles. Only .view
+   scrolls. --app-height is measured in JS (main.jsx) because iOS `dvh` can freeze
+   at a stale value on launch/rotation; 100dvh is the pre-JS fallback. */
+html,body,#root{height:var(--app-height, 100dvh); overflow:hidden}
 body{
   margin:0; background:var(--ink); color:var(--paper);
   font-family:var(--sans); -webkit-font-smoothing:antialiased;
@@ -19,7 +20,7 @@ body{
 button{font-family:inherit}
 
 .app{
-  height:100dvh; max-width:520px; margin:0 auto; position:relative;
+  height:var(--app-height, 100dvh); max-width:520px; margin:0 auto; position:relative;
   display:flex; flex-direction:column; overflow:hidden;
   background:radial-gradient(700px 420px at 80% -10%, rgba(232,163,61,.07), transparent 60%), var(--ink);
 }
