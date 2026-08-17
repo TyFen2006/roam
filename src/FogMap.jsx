@@ -188,7 +188,13 @@ export default function FogMap({ mood = 'Explore', onEditMood, onViewCommunity, 
     }
     return { ctx: el.getContext('2d'), w: wrap.clientWidth, h: wrap.clientHeight, dpr };
   }
+  // The map fires 'render' many times per frame (constantly during follow-cam),
+  // so coalesce fog redraws to one per animation frame.
   function drawFog() {
+    if (M.current.fogRAF) return;
+    M.current.fogRAF = requestAnimationFrame(() => { M.current.fogRAF = 0; renderFog(); });
+  }
+  function renderFog() {
     const map = M.current.map;
     if (!map) return;
     const fog = fogCtx();
@@ -200,17 +206,23 @@ export default function FogMap({ mood = 'Explore', onEditMood, onViewCommunity, 
     c.fillStyle = 'rgba(9,13,20,0.5)';
     c.fillRect(0, 0, w, h);
     c.globalCompositeOperation = 'destination-out';
-    c.filter = 'blur(4px)';
+    // No blur filter (very expensive): the soft radial stamp already feathers the
+    // edge. And skip points within ~20px of the last stamped one so a dense GPS
+    // track doesn't stamp hundreds of overlapping gradients — the big speedup that
+    // keeps the map smooth as run history grows.
     const stamp = (pts) => {
+      let lx = -1e9, ly = -1e9;
       for (let i = 0; i < pts.length; i++) {
         const p = map.project(pts[i]);
         if (p.x < -150 || p.x > w + 150 || p.y < -150 || p.y > h + 150) continue;
+        const dx = p.x - lx, dy = p.y - ly;
+        if (dx * dx + dy * dy < 400) continue; // ~20px min spacing between stamps
+        lx = p.x; ly = p.y;
         softStops(c, p.x, p.y, 92, [[0, 0.85], [0.25, 0.55], [0.5, 0.3], [0.75, 0.12], [1, 0]]);
       }
     };
     for (const r of M.current.routes) stamp(r);
     stamp(M.current.cur);
-    c.filter = 'none';
     c.globalCompositeOperation = 'source-over';
   }
 
@@ -594,7 +606,7 @@ export default function FogMap({ mood = 'Explore', onEditMood, onViewCommunity, 
     map.on('dragstart', () => { M.current.following = false; setShowRecenter(true); });
     const onResize = () => { map.resize(); };
     window.addEventListener('resize', onResize);
-    return () => { stopRun(); leaveLive(); if (M.current.spotMarker) { M.current.spotMarker.remove(); M.current.spotMarker = null; } window.removeEventListener('resize', onResize); clearTimeout(toastTimer.current); clearTimeout(resetTimer.current); map.remove(); M.current.map = null; };
+    return () => { stopRun(); leaveLive(); if (M.current.spotMarker) { M.current.spotMarker.remove(); M.current.spotMarker = null; } window.removeEventListener('resize', onResize); clearTimeout(toastTimer.current); clearTimeout(resetTimer.current); if (M.current.fogRAF) cancelAnimationFrame(M.current.fogRAF); map.remove(); M.current.map = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
